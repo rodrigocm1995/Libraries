@@ -80,9 +80,9 @@ typedef struct
 }Hdc1080_t;
 
 
-void writeRegister(Hdc1080_t *hdc1080, uint8_t registerAddress, uint16_t value);
+void HDC1080WriteRegister(Hdc1080_t *hdc1080, uint8_t registerAddress, uint16_t value);
 
-uint16_t readRegister(Hdc1080_t *hdc1080, uint8_t registerAddress);
+uint16_t HDC1080ReadRegister(Hdc1080_t *hdc1080, uint8_t registerAddress);
 
 uint8_t HDC1080DefaultInit(Hdc1080_t *hdc1080, I2C_HandleTypeDef *i2c, uint8_t devAddress);
 
