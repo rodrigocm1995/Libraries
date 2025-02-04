@@ -57,14 +57,14 @@ uint16_t HDC1080ReadRegister(Hdc1080_t *hdc1080, uint8_t registerAddress)
   * @param  registerAddress Target device address: The device 7 bits address value
   * @retval 16-bit data read from register's device
   */
-uint8_t hdc1080DefaultInit(Hdc1080_t *hdc1080, I2C_HandleTypeDef *i2c, uint8_t devAddress)
+uint8_t HDC1080DefaultInit(Hdc1080_t *hdc1080, I2C_HandleTypeDef *i2c, uint8_t devAddress)
 {
   hdc1080->hi2c = i2c;
   hdc1080->devAddress = devAddress;
   uint8_t isDeviceReady;
   uint16_t configValue;
 
-  configValue = MOD_CONTINUOUS_CONVERSION | CONVERSION_TYPE_4 |  AVERAGED_CONVERSIONS_8 | ALERT_MODE;
+  configValue = ACTIVE_HEATER_DISABLED | HDC1080_TEMP_OR_HUMIDITY | HDC1080_BAT_VOLTAGE_G2_8 | HDC1080_TEMP_14BIT_RESOLUTION | HDC1080_HUMIDITY_14BIT_RESOLUTION;
   isDeviceReady = HAL_I2C_IsDeviceReady(i2c, devAddress << 1, hdc1080_TRIALS, HAL_MAX_DELAY);
   
   if (isDeviceReady == HAL_OK)
@@ -99,7 +99,7 @@ uint8_t hdc1080DefaultInit(Hdc1080_t *hdc1080, I2C_HandleTypeDef *i2c, uint8_t d
   *         0: ALERT pin reflects the status of the alert flags
   * @retval return 1 if OK
   */
-uint16_t hdc1080Init(Hdc1080_t *hdc1080, I2C_HandleTypeDef *i2c, uint8_t devAddress, ConversionMode_t conversionMode, ConversionCycleTime_t conversionCycle, AveragingMode_t averagingMode, ThermAlertMode_t mode, Polarity_t polarity, Alert_t alert)
+uint16_t HDC1080Init(Hdc1080_t *hdc1080, I2C_HandleTypeDef *i2c, uint8_t devAddress, ConversionMode_t conversionMode, ConversionCycleTime_t conversionCycle, AveragingMode_t averagingMode, ThermAlertMode_t mode, Polarity_t polarity, Alert_t alert)
 {
   hdc1080->hi2c = i2c;
   hdc1080->devAddress = devAddress;
