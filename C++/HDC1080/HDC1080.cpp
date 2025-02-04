@@ -62,7 +62,7 @@ uint16_t HDC1080::getTemperature()
 uint16_t HDC1080::getHumidity()
 {
     uint16_t rawHumidity = readRegister(HDC1080_HUMIDITY_REGISTER);
-    double humidity = (double)(rawHumidity/pow(2, 16)) * 100.0;
+    float humidity = (double)(rawHumidity/pow(2, 16)) * 100.0;
 
     return humidity;
 }
