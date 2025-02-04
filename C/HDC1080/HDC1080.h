@@ -71,8 +71,6 @@ typedef enum
   ACTIVE_HEATER_DISABLED                      = 0x0000,
 } HDC1080HeaterMode_t;
 
-// To monitor the state of the Data_Ready flag on the ALERT pin
-
 typedef struct
 {
   I2C_HandleTypeDef *hi2c;
