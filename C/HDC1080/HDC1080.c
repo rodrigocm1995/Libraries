@@ -99,4 +99,5 @@ double HDC1080ReadHumidity(Hdc1080_t *hdc1080)
 {
   uint16_t rawHumidity = readRegister(hdc1080, HDC1080_HUMIDITY_REGISTER);
   double humidity = (double)(rawHumidity/pow(2, 16)) * 100.0;
+ return humidity;
 }
