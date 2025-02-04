@@ -10,7 +10,7 @@
   *         in datasheet must be shifted to the left before calling the interface
   * @param  value The data that must be written in the register
   */
-void writeRegister(Hdc1080_t *hdc1080, uint8_t registerAddress, uint16_t value)
+void HDC1080WriteRegister(Hdc1080_t *hdc1080, uint8_t registerAddress, uint16_t value)
 {
   uint8_t address[2];
   uint8_t isDeviceReady;
@@ -33,7 +33,7 @@ void writeRegister(Hdc1080_t *hdc1080, uint8_t registerAddress, uint16_t value)
   * @param  registerAddress Target device address: The device 7 bits address value
   * @retval 16-bit data read from register's device
   */
-uint16_t readRegister(Hdc1080_t *hdc1080, uint8_t registerAddress)
+uint16_t HDC1080ReadRegister(Hdc1080_t *hdc1080, uint8_t registerAddress)
 {
   uint8_t registerResponse[2];
   uint8_t isDeviceReady;
