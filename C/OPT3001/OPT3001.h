@@ -1,8 +1,8 @@
 /**
     *******************************************************************************************
 
-  * @file           : INA236.h
-  * @brief          : INA236 Library
+  * @file           : OPT3001.h
+  * @brief          : OPT3001 Library
     *******************************************************************************************
 
   * The OPT3001 is a sensor that measures the intensity of visible light. The spectral response
