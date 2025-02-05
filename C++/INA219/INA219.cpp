@@ -144,6 +144,7 @@ bool INA219::dataReady()
 
 uint8_t INA219::correctedFullScaleCalibration(uint16_t calibrationValue, float inaCurrent, float measuredShuntCurrent)
 {
+    uint16_t calibrationValue = 
     uint16_t correctedFullScaleCalibration = trunc( (calibrationValue * measuredShuntCurrent)/inaCurrent );
     writeRegister(INA219_CALIBRATION_REG, correctedFullScaleCalibration);
 }
