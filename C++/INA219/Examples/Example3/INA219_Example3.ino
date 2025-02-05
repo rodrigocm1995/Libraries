@@ -27,7 +27,11 @@ void setup() {
   //ina219.defaultInit(INA219_I2C_ADDRESS2);
   ina219.init(INA219_I2C_ADDRESS2,INA219_BUSVOLTAGERANGE_32V, INA219_PGAGAIN_320_MILI_VOLT, INA219_BUS_ADC_128SAMPLES, INA219_SHUNT_ADC_128SAMPLES, INA219_SHUNTBUS_CONTINUOUS_MODE);
   uint16_t calibration = ina219.setCalibration(rShunt, maxCurrent);
-  
+
+  // You can set corrected full scale calibration for the INA219, to enable this feature, connect your load to the device, connect a multimeter in series with your load
+  // and measure the current. Take note of the current value read by the multimeter and store it in a variable (float measuredShuntCurrent, for example), now take note  
+  // of the current read by the INA219 in the serial monitor and store it in another variable (float inaCurrent, for example), then call the correctedFullScaleCalibration(uint16_t, float, float)
+  //method
   ina219.correctedFullScaleCalibration(calibration, inaCurrent, measuredShuntCurrent);
 
   uint16_t configValue = ina219.getConfigRegister();
