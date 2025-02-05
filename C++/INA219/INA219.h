@@ -157,7 +157,7 @@ class INA219{
     uint16_t getConfigRegister();
     uint16_t setCalibration(float rShuntValue, float maxCurrent);
     uint16_t getCalibrationRegister();
-    uint8_t  correctedFullScaleCalibration(uint16_t calibrationValue, float inaCurrent, float measuredShuntCurrent);
+    uint8_t  correctedFullScaleCalibration(float inaCurrent, float measuredShuntCurrent);
     uint16_t writeRegister(uint8_t registerAddress, uint16_t value);
     uint16_t readRegister(uint8_t registerAddress);
     bool     dataReady();
