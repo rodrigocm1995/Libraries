@@ -205,7 +205,7 @@
       uint8_t  setShuntUnderVoltage();
       uint8_t  setShuntOverVoltage();
       int16_t  setShuntUnderVoltage(float shuntUnderVoltage);
-      int16_t  setShuntOvervoltage(float shuntOverVoltage);
+      int16_t  setShuntOverVoltage(float shuntOverVoltage);
   
       uint8_t  setBusUnderVoltage();
       uint8_t  setBusOverVoltage();
