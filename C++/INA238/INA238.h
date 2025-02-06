@@ -42,38 +42,39 @@
   * - Shuntdown current: 5µA (maximum)
   * 
   * @example
-  * INA236_CALIBRATION_REGISTER is calculated based on the next equation
-  * SHUNT_CAL = 0.00512/(Current_LSB x Rshunt).......................(1)
+  * INA238_CALIBRATION_REGISTER is calculated based on the next equation
+  * SHUNT_CAL = 819.2 × 10­^6 × CURRENT_LSB × Rshunt..........................(1)
   * 
   * Where:
-  *   0.00512 is an internal fixed value used to ensure scaling is maintained properly
-  *   Current_LSB is a selected value for the current step size in A. Must be greater than 
-  *   or equal to CURRENT_LSB (minimum), but less than 8 x CURRENT_LSB (minimun) to 
-  *   reduce resolution loss.
-  *   The SHUNT_CAL must be divided by 4 for ADCRANGE = 1
+  * - 819.2 × 10­^6 is an internal fixed value used to ensure scaling is maintained properly.
+  * - The SHUNT_CAL (ec. 1) must be multiplied by 4 for ADCRANGE = 1.
+  * - Current_LSB is the LSB step size for the CURRENT register where the current in Amperes
+  *   is stored. The value of the CURRENT_LSB is based on the maximum expected current as 
+  *   shown in Equation 2, and it directly defines the resolution of the CURRENT register.
   * 
-  * CURRENT_LSB (minimum) = Maximum Expected Current / 2^15..........(2)
+  * CURRENT_LSB (minimum) = Maximum Expected Current / 2^15..................(2)
   * 
   * After programming the SHUNT_CAL register with the calculated value, the measured current
   * in amperes can be read from the CURRENT register. Use equation (3) to calculate the final
   * value scaled by the CURRENT_LSB:
   * 
-  * Current[A] = CURRENT_LSB x CURRENT...............................(3)
+  * Current[A] = CURRENT_LSB x CURRENT.......................................(3)
   * 
   * Where:
   *   CURRENTis the value read from the CURRENT register
   * 
   * Design Parameters
-  * * Power Supply Voltage (Vs)        = 3.3V
-  * * Bus Supply  rail (VCM)           = 12V
-  * * Average Current                  = 6A
-  * * OverCurrent fault threshold      = 9A
-  * * Maximum current monitored (Imax) = 10A
-  * * ADC Range Selection (Vsense_max) = +-81.92mV 
+  * * Power Supply Voltage (Vs)                     = 5V
+  * * Bus Supply  rail (VCM)                        = 48V
+  * * Bus supply rail over voltage fault threshold  = 52V
+  * * Average Current                               = 6A
+  * * OverCurrent fault threshold (Imax)            = 10A
+  * * ADC Range Selection (Vsense_max)              = ±163.84mV 
   * 
   * 1. Select the Shunt Resistor
   * 
-  * Rshunt < V_SENSE_MAX / I_MAX ....................................(4)
+  * Rshunt < V_SENSE_MAX / I_MAX ............................................(4)
+  * Rshunt < 163.84mV / 10A = 16.384 mΩ. Closest standart resistor is 16.2 mΩ
   * 
   *******************************************************************************************
   */
@@ -104,6 +105,7 @@
 #define INA238_SOVL_REGISTER            0x0C // Shunt Overvoltage Threshold
 #define INA238_SUVL_REGISTER            0x0D // Shunt Undervoltage Threshold
 #define INA238_BOVL_REGISTER            0x0E // Bus overvoltage Threshold
+#define INA238_BUVL_REGISTER            0x0F // Bus undervoltage Threshold
 #define INA238_TEMP_LIMIT_REGISTER      0x10 // Temperature over-limit Threshold
 #define INA238_POWER_LIMIT_REGISTER     0x11 // Power Over-limit Threshold
 #define MANUFACTURER_ID_REGISTER        0x3E // Manufacturer ID
@@ -192,18 +194,41 @@ class INA238{
     INA238(); // Constructor. It must be defined with the same name as the class
     bool     begin(uint8_t devAddress, TwoWire *wire = &Wire);
     bool     isConnected();
+
     uint8_t  init();
     uint8_t  init(uint8_t devAddress, TwoWire *wire = &Wire);
     uint8_t  init(uint8_t devAddress, Ina238ConvDly convDly, Ina238AdcRange adcRange, TwoWire *wire = &Wire);
+
     uint16_t setCalibration(float rShuntValue, float maxCurrent);
+
+    uint8_t  setShuntUnderVoltage();
+    uint8_t  setShuntOverVoltage();
     int16_t  setShuntUnderVoltage(float shuntUnderVoltage);
-    int16_t  setShuntOverVoltage(float shuntOverVoltage);
+    int16_t  setShuntOvervoltage(float shuntOverVoltage);
+
+    uint8_t  setBusUnderVoltage();
+    uint8_t  setBusOverVoltage();
+    uint16_t  setBusUnderVoltage(float busUnderVoltage);
+    uint16_t  setBusOverVoltage(float busOverVoltage);
+
+    uint8_t  setTemperatureLimit();
+    int16_t  setTemperatureLimit(float temperatureLimit);
+
+    uint16_t setPowerLimit();
+    uint16_t setPowerLimit(float power);
+
     int16_t  getShuntUnderVoltage();
     int16_t  getShuntOverVoltage();
+
+    uint16_t getBusUnderVoltage();
+    uint16_t getBusOverVoltage();
+
+    int16_t  getTemperatureLimit(); 
+
     uint8_t  setMaskRegister(Ina236AlertType_t alertType);
     void     resetMaskRegister();
     void     setCurrentAlertLimit(float currentLimit);
-    uint8_t  writeRegister(uint8_t registerAddress, uint16_t value);
+    uint8_t  writeRegister(uint8_t registerAddress, int16_t value);
     uint16_t readRegister(uint8_t registerAddress);
     int32_t  readRegister(uint8_t registerAddress);
     bool     dataReady();
