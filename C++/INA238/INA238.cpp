@@ -1,7 +1,7 @@
 #include <INA238.h>
 #include "math.h"
 
-const uint8_t INA238_regSize[maxRegAddress+1] = {
+const uint8_t INA238_regSize[MAX_REG_ADDRESS+1] = {
                                             2,2,2,0,2,2,2,2,\
                                             3,0,0,2,2,2,2,2,\
                                             2,2,0,0,0,0,0,0,\
@@ -21,7 +21,7 @@ bool INA238::begin(uint8_t devAddress, TwoWire *wire)
 {
     _shuntAdcResolution = 5e-6;
     _rangeAdc = 0;
-    _devAddress = devAddress;
+    _deviceAddress = devAddress;
     _wire = wire;
 
     if (!isConnected()) return false;
@@ -66,15 +66,16 @@ int32_t INA238::readRegister(uint8_t registerAddress)
     return value;
 }
 
-uint8_t INA238::init()
+void INA238::init()
 {
     _shuntAdcResolution = 5e-6;
     _rangeAdc = 0;
-    uint16_t configValue = INA238_0_SEC_DELAY | INA238_163_DOT_84_MV | INA238_CONT_TEMP_SBVOLTAGE | INA238_1052_USEC_VBUS | INA238_1052_USEC_VSH | INA238_1052_USEC_TEMP | INA238_1_COUNT;
-    return ( (writeRegister(INA238_CONFIG_REGISTER, configValue) == 0) ? 1 : 0 );
+    uint16_t configValue = INA238_0_SEC_DELAY | INA238_163_DOT_84_MV;
+    writeRegister(INA238_CONFIG_REGISTER, configValue);
+    initAdcConfig();
 }
 
-uint8_t INA238::init(uint8_t devAddress, TwoWire *wire)
+void INA238::init(uint8_t devAddress, TwoWire *wire)
 {
     _shuntAdcResolution = 5e-6;
     _rangeAdc = 0;
@@ -82,11 +83,12 @@ uint8_t INA238::init(uint8_t devAddress, TwoWire *wire)
     _wire = wire;
 
     uint16_t configValue = INA238_0_SEC_DELAY | INA238_163_DOT_84_MV;
-    return ( (writeRegister(INA238_CONFIG_REGISTER, configValue) == 0) ? 1 : 0 );
+    writeRegister(INA238_CONFIG_REGISTER, configValue);
+    initAdcConfig();
 }
 
 
-uint8_t INA238::init(uint8_t devAddress, Ina238ConvDly convDly, Ina238AdcRange adcRange, TwoWire *wire)
+void INA238::init(uint8_t devAddress, Ina238ConvDly convDly, Ina238AdcRange adcRange, TwoWire *wire)
 {
     _deviceAddress = devAddress;
     _wire = wire;
@@ -104,10 +106,32 @@ uint8_t INA238::init(uint8_t devAddress, Ina238ConvDly convDly, Ina238AdcRange a
 
     uint16_t configValue = convDly | adcRange;
 
-    return ( (writeRegister(INA236_CONFIGURATION_REGISTER, configValue) == 0) ? 1 : 0 );
+    writeRegister(INA238_CONFIG_REGISTER, configValue);
 }
 
+void INA238::initAdcConfig()
+{
+  uint16_t value = INA238_CONT_TEMP_SBVOLTAGE | INA238_1052_USEC_VBUS | INA238_1052_USEC_VSH | INA238_1052_USEC_TEMP | INA238_1_COUNT;
+  writeRegister(INA238_ADC_CONFIG_REGISTER, value);
+}
 
+void INA238::initAdcConfig(Ina238Mode mode, Ina238VbusConvTime vbusCt, Ina238VshuntConvTime vShuntCt, Ina238TempConvTime tempCt, Ina238Avg avg)
+{
+  uint16_t value = mode | vbusCt | vShuntCt | tempCt | avg;
+  writeRegister(INA238_ADC_CONFIG_REGISTER, value);
+}
+
+/**
+  * @brief  Compute the calibration value  that will be written into the 
+  *         SHUNT_CAL_REGISTER. Also sets defaults Limits:
+  *         - setShuntOverVoltage
+  *         - setShuntUnderVoltage
+  *         - setBusUnderVoltage
+  *         - setBusOverVoltage
+  * @param  rShuntValue: The shunt resistor value
+  * @param  maxCurrent: The maximum current the user wants to measure
+  * @retval shuntCalvalue to corroborate the value written in the register
+  */
 uint16_t INA238::setCalibration(float rShuntValue, float maxCurrent)
 {
     _rShunt = rShuntValue;
@@ -133,6 +157,30 @@ uint16_t INA238::setCalibration(float rShuntValue, float maxCurrent)
     return shuntCal;
 }
 
+/**
+  * @brief  Sets a default threshold for comparison of the Value to detect Shunt
+  *         Overvoltage (overcurrent protection). Two's complement value.
+  *         This default value is based on the maximum current and Resistance value
+  *         selected by the user. 
+  * @param  none
+  * @retval -
+  */
+ uint8_t INA238::setShuntOverVoltage()
+ {
+     float shuntVoltageLimit = _maximumCurrent * _rShunt;
+     int16_t shuntOverVoltageLimitRegister = shuntVoltageLimit/_shuntAdcResolution;
+ 
+     writeRegister(INA238_SOVL_REGISTER, shuntOverVoltageLimitRegister);
+     return shuntOverVoltageLimitRegister;
+ }
+
+/**
+  * @brief  Sets a default threshold for comparison of the Value to detect Shunt
+  *         Undervoltage (undercurrent protection). Two's complement value.
+  *         Write the negative value of the overvoltageLimit. 
+  * @param  none
+  * @retval -
+  */
 uint8_t INA238::setShuntUnderVoltage()
 {
     int16_t sovl = setShuntOverVoltage();
@@ -140,47 +188,59 @@ uint8_t INA238::setShuntUnderVoltage()
     writeRegister(INA238_SUVL_REGISTER, sovl);
 }
 
-uint8_t INA238::setShuntOverVoltage()
-{
-    float shuntVoltageLimit = _maximumCurrent * _rShunt;
-    int16_t shuntOverVoltageLimitRegister = shuntVoltageLimit/_shuntAdcResolution;
-
-    writeRegister(INA238_SOVL_REGISTER, shuntOverVoltageLimitRegister);
-    return shuntOverVoltageLimitRegister;
-}
-
-int16_t UNA238::setShuntUnderVoltage(float shuntUnderVoltage)
+/**
+  * @brief  Sets a custom threshold for comparison of the Value to detect
+  *         Shunt Undervoltage (undercurrent protection). User must know the
+  *         selected full scale range (±163.84mV or ±40.96mV)
+  * @param  shuntUnderVoltage: The value of the shunt voltage that will trigger the alert
+  * @retval int 16-bit data to corroborate the value written in the register
+  */
+int16_t INA238::setShuntUnderVoltage(float shuntUnderVoltage)
 {
     int16_t shuntVoltageLimit = shuntUnderVoltage / _shuntAdcResolution;
     writeRegister(INA238_SOVL_REGISTER, shuntVoltageLimit);
     return shuntVoltageLimit;
 }
 
-int16_t UNA238::setShuntOvervoltage(float shuntOverVoltage)
+/**
+  * @brief  Sets a default threshold for comparison of the Value to detect Shunt
+  *         Overvoltage (overcurrent protection). User must know the
+  *         selected full scale range (±163.84mV or ±40.96mV)
+  * @param  shuntUnderVoltage: The value of the shunt voltage that will trigger the alert
+  * @retval int 16-bit data to corroborate the value written in the register
+  */
+int16_t INA238::setShuntOvervoltage(float shuntOverVoltage)
 {
     int16_t shuntVoltageLimit = shuntOverVoltage / _shuntAdcResolution;
     writeRegister(INA238_SOVL_REGISTER, shuntVoltageLimit);
     return shuntVoltageLimit;
 }
 
-/**
-  * @brief  Sets the threshold for comparison of the value to detect Bus Undervoltage
-  *         (undervoltage protection). Unsigned representation, positive value only.
-  *         Conversion Factor: 3.125 mV/LSB
-  * @param  none
-  * @retval -
-  */
-uint8_t INA238::setBusUnderVoltage()
+int16_t INA238::getTemperatureLimit()
 {
-    writeRegister(INA238_BOVL_REGISTER, 0x0000);
+  
 }
 
 /**
-  * @brief  Sets the threshold for comparison of the value to detect Bus Overvoltage
+  * @brief  Sets a default threshold of 0 for comparison of the value to detect Bus Undervoltage
+  *         (undervoltage protection). Unsigned representation, positive value only.
+  *         Conversion Factor: 3.125 mV/LSB
+  * @param  busUnderVoltage: float positive value to select the threshold
+  *         Range: 0.0-85.0 
+  * @retval uint 16-bit data to corroborate the value written in the register
+  */
+ uint8_t INA238::setBusUnderVoltage()
+ {
+     writeRegister(INA238_BOVL_REGISTER, 0x0000);
+ }
+
+/**
+  * @brief  Sets a default maximum threshold for comparison of the value to detect Bus Overvoltage
   *         (overvoltage protection). Unsigned representation, positive value only.
   *         Conversion Factor: 3.125 mV/LSB
-  * @param  none
-  * @retval -
+  * @param  busUnderVoltage: float positive value to select the threshold
+  *         Range: 0.0-85.0 
+  * @retval uint 16-bit data to corroborate the value written in the register
   */
 uint8_t INA238::setBusOverVoltage()
 {
@@ -188,7 +248,7 @@ uint8_t INA238::setBusOverVoltage()
 }
 
 /**
-  * @brief  Sets the threshold for comparison of the value to detect Bus Undervoltage
+  * @brief  Sets a custom threshold for comparison of the value to detect Bus Undervoltage
   *         (undervoltage protection). Unsigned representation, positive value only.
   *         Conversion Factor: 3.125 mV/LSB
   * @param  busUnderVoltage: float positive value to select the threshold
@@ -246,81 +306,59 @@ uint16_t INA238::setPowerLimit(float power)
     return powerLimit;
 }
 
+/**
+  * @brief  Gets the raw value of the SUVL (Shunt Under Voltage Limit) register
+  * @param  none
+  * @retval int 16-bit data to corroborate the value written in the register
+  */
 int16_t INA238::getShuntUnderVoltage()
 {
     int16_t value = readRegister(INA238_SUVL_REGISTER);
     return value;
 }
 
+/**
+  * @brief  Gets the raw value of the SOVL (Shunt Over Voltage Limit) register
+  * @param  none
+  * @retval int 16-bit data to corroborate the value written in the register
+  */
 int16_t INA238::getShuntOverVoltage()
 {
     int16_t value = readRegister(INA238_SOVL_REGISTER);
     return value;
 }
 
+/**
+  * @brief  Gets the raw value of the BUVL (Bus Under Voltage Limit) register
+  * @param  none
+  * @retval uint 16-bit data to corroborate the value written in the register
+  */
 uint16_t INA238::getBusUnderVoltage()
 {
     uint16_t value = readRegister(INA238_BUVL_REGISTER);
-    return value
+    return value;
 }
 
+/**
+  * @brief  Gets the raw value of the BOVL (Bus Over Voltage Limit) register
+  * @param  none
+  * @retval uint 16-bit data to corroborate the value written in the register
+  */
 uint16_t INA238::getBusOverVoltage()
 {
     uint16_t value = readRegister(INA238_BOVL_REGISTER);
-    return value
+    return value;
 }
 
+/**
+  * @brief  Gets the raw value of the Temperature Limit register
+  * @param  none
+  * @retval int 16-bit data to corroborate the value written in the register
+  */
 int16_t INA238::getTemperatureLimit()
 {
     int16_t value = readRegister(INA238_TEMP_LIMIT_REGISTER);
     return value;
-}
-
-void INA238::setMaskRegister(Ina236AlertType_t alertType)
-{
-    _alertType = alertType;
-    uint16_t value;
-
-    switch(alertType)
-    {
-        case 1:
-            value = INA236_SHUNT_OVER_LIMIT;
-            break;
-        case 2:
-            value = INA236_SHUNT_UNDER_LIMIT;
-            break;
-        case 3:
-            value = INA236_BUS_OVER_LIMIT;
-            break;
-        case 4: 
-            value = INA236_BUS_UNDER_LIMIT;
-            break;
-        case 5:
-            value = INA236_POWER_OVER_LIMIT;
-            break;
-        case 6:
-            value = INA236_CONVERSION_READY;
-            break;
-        default: return 0;
-  }
-  value = value | 0x0000;
-  writeRegister(INA236_MASK_ENABLE_REGISTER, value);
-  return value;
-}
-
-void INA238::resetMaskRegister()
-{
-    writeRegister(INA236_MASK_ENABLE_REGISTER, 0x0000);
-}
-
-void INA238::setCurrentAlertLimit(float currentLimit)
-{
-    float shuntVoltageLimit;
-    uint16_t alertValue;
-
-    shuntVoltageLimit = currentLimit * _rShunt;
-    alertValue = shuntVoltageLimit / _shuntAdcRange;
-    writeRegister(INA236_ALERT_LIMIT_REGISTER, alertValue);
 }
 
 /**
@@ -376,7 +414,7 @@ float INA238::getCurrent()
   */
 float INA238::getPower()
 {
-  uint32_t rawPower = readRegister(INA236_POWER_REGISTER);
+  uint32_t rawPower = readRegister(INA238_POWER_REGISTER);
   float power = 0.2 * rawPower * (_currentLsbMin) * (1000.0);
   return power;   
 }
@@ -395,19 +433,3 @@ float INA238::getTemperature()
   return temperature;   
 }
 
-bool INA238::alertFunctionFlag()
-{
-	uint16_t result = readRegister(INA236_MASK_ENABLE_REGISTER);
-	bool isAlertFunctionFlagTrue = CHECK_BIT(result, 4);
-	return isAlertFunctionFlagTrue;   
-}
-
-bool INA238::dataReady()
-{
-    bool isDataReady;
-
-    uint16_t conversionReady = readRegister(INA238, INA236_MASK_ENABLE_REGISTER);
-    isDataReady = CHECK_BIT(conversionReady, 3);
-
-    return isDataReady;
-}
