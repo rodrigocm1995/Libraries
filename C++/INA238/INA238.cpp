@@ -35,7 +35,7 @@ bool INA238::isConnected()
   return ( _wire->endTransmission() == 0);
 }
 
-uint8_t INA238::writeRegister(uint8_t registerAddress, uint16_t value)
+uint8_t INA238::writeRegister(uint8_t registerAddress, int16_t value)
 {
     _wire->beginTransmission(_deviceAddress);
     _wire->write(registerAddress);
@@ -124,23 +124,126 @@ uint16_t INA238::setCalibration(float rShuntValue, float maxCurrent)
         shuntCal = shuntCal * 4;
     }
 
+    setShuntOverVoltage();
+    setShuntUnderVoltage();
+    setBusUnderVoltage();
+    setBusOverVoltage();
     writeRegister(INA238_SHUNT_CAL_REGISTER, shuntCal);
+
     return shuntCal;
 }
 
-
-int16_t INA238::setShuntUnderVoltage(float shuntUnderVoltage)
+uint8_t INA238::setShuntUnderVoltage()
 {
-
+    int16_t sovl = setShuntOverVoltage();
+    sovl = ~sovl + 1;
+    writeRegister(INA238_SUVL_REGISTER, sovl);
 }
 
-int16_t INA238::setShuntOverVoltage(float shuntOverVoltage)
+uint8_t INA238::setShuntOverVoltage()
 {
     float shuntVoltageLimit = _maximumCurrent * _rShunt;
-    uint16_t shuntOverVoltageLimitRegister = shuntVoltageLimit/_shuntAdcResolution;
+    int16_t shuntOverVoltageLimitRegister = shuntVoltageLimit/_shuntAdcResolution;
 
     writeRegister(INA238_SOVL_REGISTER, shuntOverVoltageLimitRegister);
     return shuntOverVoltageLimitRegister;
+}
+
+int16_t UNA238::setShuntUnderVoltage(float shuntUnderVoltage)
+{
+    int16_t shuntVoltageLimit = shuntUnderVoltage / _shuntAdcResolution;
+    writeRegister(INA238_SOVL_REGISTER, shuntVoltageLimit);
+    return shuntVoltageLimit;
+}
+
+int16_t UNA238::setShuntOvervoltage(float shuntOverVoltage)
+{
+    int16_t shuntVoltageLimit = shuntOverVoltage / _shuntAdcResolution;
+    writeRegister(INA238_SOVL_REGISTER, shuntVoltageLimit);
+    return shuntVoltageLimit;
+}
+
+/**
+  * @brief  Sets the threshold for comparison of the value to detect Bus Undervoltage
+  *         (undervoltage protection). Unsigned representation, positive value only.
+  *         Conversion Factor: 3.125 mV/LSB
+  * @param  none
+  * @retval -
+  */
+uint8_t INA238::setBusUnderVoltage()
+{
+    writeRegister(INA238_BOVL_REGISTER, 0x0000);
+}
+
+/**
+  * @brief  Sets the threshold for comparison of the value to detect Bus Overvoltage
+  *         (overvoltage protection). Unsigned representation, positive value only.
+  *         Conversion Factor: 3.125 mV/LSB
+  * @param  none
+  * @retval -
+  */
+uint8_t INA238::setBusOverVoltage()
+{
+    writeRegister(INA238_BOVL_REGISTER, 0x7FFF);
+}
+
+/**
+  * @brief  Sets the threshold for comparison of the value to detect Bus Undervoltage
+  *         (undervoltage protection). Unsigned representation, positive value only.
+  *         Conversion Factor: 3.125 mV/LSB
+  * @param  busUnderVoltage: float positive value to select the threshold
+  *         Range: 0.0-85.0 
+  * @retval uint 16-bit data to corroborate the value written in the register
+  */
+uint16_t INA238::setBusUnderVoltage(float busUnderVoltage)
+{
+    uint16_t busVoltageLimit =  busUnderVoltage / 3.125e-3;
+    writeRegister(INA238_BOVL_REGISTER, busVoltageLimit);
+    return busVoltageLimit;
+}
+
+/**
+  * @brief  Sets the threshold for comparison of the value to detect Bus Overvoltage
+  *         (overvoltage protection). Unsigned representation, positive value only.
+  *         Conversion Factor: 3.125 mV/LSB
+  * @param  busUnderVoltage: float positive value to select the threshold
+  *         Range: 0.0-85.0 
+  * @retval uint 16-bit data to corroborate the value written in the register
+  */
+uint16_t INA238::setBusOverVoltage(float busOverVoltage)
+{
+    uint16_t busVoltageLimit =  busOverVoltage / 3.125e-3;
+    writeRegister(INA238_BOVL_REGISTER, busVoltageLimit);
+    return busVoltageLimit;
+}
+
+/**
+  * @brief  Sets the threshold for comparison of the value to detect Bus Over 
+  *         temperature measurements. Two's complement value.
+  *         Conversion Factor: 125 m°C/LSB.
+  * @param  temperature: float positive value to select the threshold temperature
+  *         Range: -40.0 to +125.0 
+  * @retval int 16-bit data to corroborate the value written in the register
+  */
+int16_t  INA238::setTemperatureLimit(float temperature)
+{
+    int16_t temperatureLimit = temperature / 125e-3;
+    writeRegister(INA238_TEMP_LIMIT_REGISTER, temperatureLimit);
+    return temperatureLimit;
+}
+
+/**
+  * @brief  Sets the threshold for comparison of the value to detect power over- 
+  *         limit measurements. Unsigned representation, positive value only.
+  *         Conversion Factor: 256 * Power_LSB.
+  * @param  power: float positive value to select the threshold temperature
+  * @retval uint 16-bit data to corroborate the value written in the register
+  */
+uint16_t INA238::setPowerLimit(float power)
+{
+    uint16_t powerLimit =  power / (256.0 * 0.2 * _currentLsbMin);
+    writeRegister(INA238_POWER_LIMIT_REGISTER, powerLimit);
+    return powerLimit;
 }
 
 int16_t INA238::getShuntUnderVoltage()
@@ -155,9 +258,21 @@ int16_t INA238::getShuntOverVoltage()
     return value;
 }
 
-int16_t INA238::getShuntOverVoltage()
+uint16_t INA238::getBusUnderVoltage()
 {
-    uint16_t value = readRegister(INA238_SOVL_REGISTER);
+    uint16_t value = readRegister(INA238_BUVL_REGISTER);
+    return value
+}
+
+uint16_t INA238::getBusOverVoltage()
+{
+    uint16_t value = readRegister(INA238_BOVL_REGISTER);
+    return value
+}
+
+int16_t INA238::getTemperatureLimit()
+{
+    int16_t value = readRegister(INA238_TEMP_LIMIT_REGISTER);
     return value;
 }
 
