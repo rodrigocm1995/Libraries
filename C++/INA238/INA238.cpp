@@ -209,16 +209,11 @@ int16_t INA238::setShuntUnderVoltage(float shuntUnderVoltage)
   * @param  shuntUnderVoltage: The value of the shunt voltage that will trigger the alert
   * @retval int 16-bit data to corroborate the value written in the register
   */
-int16_t INA238::setShuntOvervoltage(float shuntOverVoltage)
+int16_t INA238::setShuntOverVoltage(float shuntOverVoltage)
 {
     int16_t shuntVoltageLimit = shuntOverVoltage / _shuntAdcResolution;
     writeRegister(INA238_SOVL_REGISTER, shuntVoltageLimit);
     return shuntVoltageLimit;
-}
-
-int16_t INA238::getTemperatureLimit()
-{
-  
 }
 
 /**
