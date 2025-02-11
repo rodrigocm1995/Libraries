@@ -124,9 +124,11 @@ typedef struct
 }ADS1115_t;
 
 
-void Ads1115WriteRegister(ADS1115_t *tmp117, uint8_t registerAddress, uint16_t value);
+void Ads1115WriteRegister(ADS1115_t *ads1115, uint8_t registerAddress, uint16_t value);
 
-uint16_t Ads1115ReadRegister(ADS1115_t *tmp117, uint8_t registerAddress);
+uint16_t Ads1115ReadRegister(ADS1115_t *ads1115, uint8_t registerAddress);
+
+uint16_t Ads1115GetConfigRegister(ADS1115_t *ads1115);
 
 
 #endif
