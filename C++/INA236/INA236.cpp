@@ -48,12 +48,12 @@ uint8_t INA236::init(uint8_t devAddress, Ina236AdcRange_t adcRange, Ina236Avg_t 
 
     if (adcRange == INA236_ADCRANGE_81DOT92_MILIVOLT)
     {
-	    ina236->shuntAdcRange = 2.5 * pow(10, -6);
+	    _shuntAdcRange = 2.5 * pow(10, -6);
 	    _rangeAdc = 0;
     }
     else if (adcRange == INA236_ADCRANGE_20DOT48_MILIVOLT)
     {
-	    ina236->shuntAdcRange = 625 * pow(10, -9);
+	    _shuntAdcRange = 625 * pow(10, -9);
 	    _rangeAdc = 1;
     }
 
