@@ -178,7 +178,7 @@ bool INA236::dataReady()
 {
     bool isDataReady;
 
-    uint16_t conversionReady = readRegister(ina236, INA236_MASK_ENABLE_REGISTER);
+    uint16_t conversionReady = readRegister(INA236_MASK_ENABLE_REGISTER);
     isDataReady = CHECK_BIT(conversionReady, 3);
 
     return isDataReady;
