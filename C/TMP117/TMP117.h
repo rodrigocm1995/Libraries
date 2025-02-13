@@ -108,7 +108,7 @@ typedef enum
 typedef enum
 {
   ALERT_DATAREADY_FLAG_STATUS                 = 0x0004,
-  ALERT__FLAGS_STATUS                         = 0x0000,
+  ALERT_FLAGS_STATUS                         = 0x0000,
 }tmp117Alert_t;
 // To monitor the state of the Data_Ready flag on the ALERT pin
 
