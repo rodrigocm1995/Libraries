@@ -107,7 +107,7 @@ uint16_t Ads1115GetConfigRegister(ADS1115_t *ads1115)
 uint16_t Ads1115GetConversion(ADS1115_t *ads1115)
 {
     uint16_t value = Ads1115ReadRegister(ads1115, ADS1115_CONVERSION_REGISTER);
-    return value
+    return value;
 }
 
 
