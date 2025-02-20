@@ -128,7 +128,13 @@ void Ads1115WriteRegister(ADS1115_t *ads1115, uint8_t registerAddress, uint16_t 
 
 uint16_t Ads1115ReadRegister(ADS1115_t *ads1115, uint8_t registerAddress);
 
+uint8_t Ads1115Init(ADS1115_t *ads1115, I2C_HandleTypeDef *i2c, uint8_t devAddress);
+
+uint8_t Ads1115CustomInit(ADS1115_t *ads1115, I2C_HandleTypeDef *i2c, uint8_t devAddress, ADS115Mux muxType, ADS115Pga pga, ADS115Mode mode, ADS1115DataRate dataRate, ADS1115CompMode compMode, ADS1115CompPol pol, ADS1115CompLatch latch, ADS1115CompQueue queue);
+
 uint16_t Ads1115GetConfigRegister(ADS1115_t *ads1115);
+
+uint16_t Ads1115GetConversion(ADS1115_t *ads1115);
 
 
 #endif
