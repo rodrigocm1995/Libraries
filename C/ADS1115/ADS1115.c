@@ -71,7 +71,27 @@ uint8_t Ads1115Init(ADS1115_t *ads1115, I2C_HandleTypeDef *i2c, uint8_t devAddre
   if (isDeviceReady == HAL_OK)
   {
     //HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
-	  Ads1115WriteRegister(ads1115, ADS1115_CONFIGURATION_REGISTER, configValue);
+    Ads1115WriteRegister(ads1115, ADS1115_CONFIGURATION_REGISTER, configValue);
+    return 1;
+  }
+
+  return 0;
+}
+
+uint8_t Ads1115CustomInit(ADS1115_t *ads1115, I2C_HandleTypeDef *i2c, uint8_t devAddress, ADS115Mux muxType, ADS115Pga pga, ADS115Mode mode, ADS1115DataRate dataRate, ADS1115CompMode compMode, ADS1115CompPol pol, ADS1115CompLatch latch, ADS1115CompQueue queue)
+{
+  ads1115->hi2c = i2c;
+  ads1115->devAddress = devAddress;
+  uint8_t isDeviceReady;
+  uint16_t configValue;
+
+  configValue = muxType | pga | mode | dataRate | compMode | pol | latch | queue; 
+  isDeviceReady = HAL_I2C_IsDeviceReady(i2c, devAddress << 1, ADS1115_TRIALS, HAL_MAX_DELAY);
+  
+  if (isDeviceReady == HAL_OK)
+  {
+    //HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+    Ads1115WriteRegister(ads1115, ADS1115_CONFIGURATION_REGISTER, configValue);
     return 1;
   }
 
@@ -80,8 +100,14 @@ uint8_t Ads1115Init(ADS1115_t *ads1115, I2C_HandleTypeDef *i2c, uint8_t devAddre
 
 uint16_t Ads1115GetConfigRegister(ADS1115_t *ads1115)
 {
-	uint16_t value = Ads1115ReadRegister(ads1115, ADS1115_CONFIGURATION_REGISTER);
-	return value;
+    uint16_t value = Ads1115ReadRegister(ads1115, ADS1115_CONFIGURATION_REGISTER);
+    return value;
+}
+
+uint16_t Ads1115GetConversion(ADS1115_t *ads1115)
+{
+    uint16_t value = Ads1115ReadRegister(ads1115, ADS1115_CONVERSION_REGISTER);
+    return value
 }
 
 
