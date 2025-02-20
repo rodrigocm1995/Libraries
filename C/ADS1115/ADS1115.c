@@ -62,6 +62,7 @@ uint8_t Ads1115Init(ADS1115_t *ads1115, I2C_HandleTypeDef *i2c, uint8_t devAddre
 {
   ads1115->hi2c = i2c;
   ads1115->devAddress = devAddress;
+  ads1115->lsbSize = 62.5e-6;
   uint8_t isDeviceReady;
   uint16_t configValue;
 
@@ -85,9 +86,16 @@ uint8_t Ads1115CustomInit(ADS1115_t *ads1115, I2C_HandleTypeDef *i2c, uint8_t de
   uint8_t isDeviceReady;
   uint16_t configValue;
 
-  configValue = muxType | pga | mode | dataRate | compMode | pol | latch | queue; 
+  configValue = muxType | pga | mode | dataRate | compMode | pol | latch | queue;
   isDeviceReady = HAL_I2C_IsDeviceReady(i2c, devAddress << 1, ADS1115_TRIALS, HAL_MAX_DELAY);
-  
+
+  if (pga == FSR_6_DOT_144_V) ads1115->lsbSize = 187.5e-6;
+  else if (pga == FSR_4_DOT_096_V) ads1115->lsbSize = 125e-6;
+  else if (pga == FSR_2_DOT_048_V) ads1115->lsbSize = 62.5e-6;
+  else if (pga == FSR_1_DOT_024_V) ads1115->lsbSize = 31.25e-6;
+  else if (pga == FSR_0_DOT_512_V) ads1115->lsbSize = 15.625e-6;
+  else if (pga == FSR_0_DOT_256_V) ads1115->lsbSize = 7.8125e-6;
+
   if (isDeviceReady == HAL_OK)
   {
     //HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
@@ -110,4 +118,22 @@ uint16_t Ads1115GetConversion(ADS1115_t *ads1115)
     return value;
 }
 
+double Ads1115GetVoltage(ADS1115_t *ads1115)
+{
+    uint16_t value = Ads1115GetConversion(ads1115);
+    double volt = value * (ads1115->lsbSize);
+    return volt;
+}
 
+
+
+_Bool Ads1115IsDeviceReady(ADS1115_t *ads1115)
+{
+	uint16_t config = Ads1115ReadRegister(ads1115, ADS1115_CONFIGURATION_REGISTER);
+	_Bool isReady = CHECK_BIT(config, 15);
+
+	if (isReady == 0)
+		return 1;
+	else
+		return 0;
+}
