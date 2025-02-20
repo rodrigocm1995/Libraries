@@ -121,6 +121,7 @@ typedef struct
 {
   I2C_HandleTypeDef *hi2c;
   uint8_t devAddress;
+  double lsbSize;
 }ADS1115_t;
 
 
@@ -135,6 +136,10 @@ uint8_t Ads1115CustomInit(ADS1115_t *ads1115, I2C_HandleTypeDef *i2c, uint8_t de
 uint16_t Ads1115GetConfigRegister(ADS1115_t *ads1115);
 
 uint16_t Ads1115GetConversion(ADS1115_t *ads1115);
+
+double Ads1115GetVoltage(ADS1115_t *ads1115);
+
+_Bool Ads1115IsDeviceReady(ADS1115_t *ads1115);
 
 
 #endif
