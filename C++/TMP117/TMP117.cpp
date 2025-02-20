@@ -125,7 +125,7 @@ float TMP117::getTemperature()
 float TMP117::checkAndGetTemperature(int16_t value)
 {
     float temperature;
-	_Bool isMsb;
+	bool isMsb;
 
 	isMsb = CHECK_BIT(value, 15);
 
