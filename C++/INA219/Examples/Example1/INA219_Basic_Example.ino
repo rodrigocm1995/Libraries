@@ -39,14 +39,13 @@ void loop() {
     loadVoltage  = ina219.readBusVoltage();
     current      = ina219.readCurrent();
     power        = ina219.readPower() * 1000.0;
-    loadVoltage  = busVoltage - (shuntVoltage/1000.0);
-    vSupply      = busVoltage + shuntVoltage;
+    vSupply      = busVoltage + shuntVoltage/1000.0;
 
-    Serial.print("Bus Voltage:   "); Serial.print(busVoltage); Serial.println(" V");
-    Serial.print("Shunt Voltage: "); Serial.print(shuntVoltage); Serial.println(" mV");
-    Serial.print("Load Voltage:  "); Serial.print(loadVoltage); Serial.println(" V");
-    Serial.print("Current:       "); Serial.print(current); Serial.println(" mA");
-    Serial.print("Power:         "); Serial.print(power); Serial.println(" mW");
+    Serial.print("Supply Voltage: "); Serial.print(vSupply); Serial.println(" V");
+    Serial.print("Shunt Voltage:  "); Serial.print(shuntVoltage); Serial.println(" mV");
+    Serial.print("Load Voltage:   "); Serial.print(loadVoltage); Serial.println(" V");
+    Serial.print("Current:        "); Serial.print(current); Serial.println(" mA");
+    Serial.print("Power:          "); Serial.print(power); Serial.println(" mW");
     Serial.println("");
 
     delay(1000);
