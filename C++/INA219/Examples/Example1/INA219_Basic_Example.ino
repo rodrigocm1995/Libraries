@@ -7,7 +7,6 @@ static float rShunt       = 0.1;
 static float maxCurrent   = 3.0;
 
 static float shuntVoltage = 0.0;
-static float busVoltage   = 0.0;
 static float current      = 0.0;
 static float power        = 0.0;
 static float loadVoltage  = 0.0;
