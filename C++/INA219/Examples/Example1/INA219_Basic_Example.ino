@@ -11,6 +11,7 @@ static float busVoltage   = 0.0;
 static float current      = 0.0;
 static float power        = 0.0;
 static float loadVoltage  = 0.0;
+static float vSupply      = 0.0;
 
 void setup() {
   // put your setup code here, to run once:
@@ -35,10 +36,11 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
     shuntVoltage = ina219.readShuntVoltage();
-    busVoltage   = ina219.readBusVoltage();
+    loadVoltage  = ina219.readBusVoltage();
     current      = ina219.readCurrent();
     power        = ina219.readPower() * 1000.0;
     loadVoltage  = busVoltage - (shuntVoltage/1000.0);
+    vSupply      = busVoltage + shuntVoltage;
 
     Serial.print("Bus Voltage:   "); Serial.print(busVoltage); Serial.println(" V");
     Serial.print("Shunt Voltage: "); Serial.print(shuntVoltage); Serial.println(" mV");
