@@ -53,9 +53,10 @@ static double rShunt        = 0.1;
 static double maxCurrent    = 2.0;
 
 static double shuntVoltage  = 0.0;
-static double busVoltage    = 0.0;
+static double vSupply       = 0.0;
 static double currentValue  = 0.0;
 static double power         = 0.0;
+static double loadVoltage   = 0.0;
 
 static double ina219Current = 0.300;
 static double measuredShuntCurrent = 0.312;
@@ -125,12 +126,14 @@ int main(void)
 	 if (dataReady)
 	 {
 		 shuntVoltage = ina219ReadShuntVoltage(&ina219);
-		 busVoltage   = ina219ReadBusVoltage(&ina219);
+		 loadVoltage  = ina219ReadBusVoltage(&ina219);
 		 currentValue = ina219ReadCurrent(&ina219);
 		 power        = (ina219ReadPower(&ina219)) * (1000.0);
+		 vsupply      = loadVoltage + shuntVoltage / 1000.0;
 
+		 printValue(vsupply, "Supply Voltage = %.2f V \r\n");
 		 printValue(shuntVoltage, "Shunt Voltage = %.2f mV \r\n");
-		 printValue(busVoltage, "Bus Voltage = %.2f V \r\n");
+		 printValue(loadVoltage, "Bus Voltage = %.2f V \r\n");
 		 printValue(currentValue, "Current = %.2f mA \r\n");
 		 printValue(power, "Power = %.2f mW \n\r ==================== \n\r");
 	 }
