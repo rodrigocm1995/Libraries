@@ -113,7 +113,8 @@ int main(void)
   ina219_init(&ina219, &hi2c1, INA219_DEFAULT_ADDRESS, INA219_BUSVOLTAGERANGE_32V, INA219_PGAGAIN_320_MILI_VOLT, INA219_BUS_ADC_128SAMPLES, INA219_SHUNT_ADC_128SAMPLES, INA219_SHUNTBUS_CONTINUOUS_MODE);
   //uint16_t configRegister =  readRegister(&ina219, INA219_CONFIGURATION_REG);
   calibration = ina219_calibration(&ina219, rShunt, maxCurrent);
-  ina219CorrectedCalibration(&ina219, calibration, ina219Current, measuredShuntCurrent);
+  printValue(calibration, "CALIBRATION = 0x%04X \r\n");
+  //ina219CorrectedCalibration(&ina219, calibration, ina219Current, measuredShuntCurrent);
   //uint16_t calibrationRegister = readRegister(&ina219, INA219_CALIBRATION_REG);
   /* USER CODE END 2 */
 
@@ -129,11 +130,11 @@ int main(void)
 		 loadVoltage  = ina219ReadBusVoltage(&ina219);
 		 currentValue = ina219ReadCurrent(&ina219);
 		 power        = (ina219ReadPower(&ina219)) * (1000.0);
-		 vsupply      = loadVoltage + shuntVoltage / 1000.0;
+		 vSupply      = loadVoltage + shuntVoltage / 1000.0;
 
-		 printValue(vsupply, "Supply Voltage = %.2f V \r\n");
+		 printValue(vSupply, "Supply Voltage = %.3f V \r\n");
 		 printValue(shuntVoltage, "Shunt Voltage = %.2f mV \r\n");
-		 printValue(loadVoltage, "Bus Voltage = %.2f V \r\n");
+		 printValue(loadVoltage, "Load Voltage = %.3f V \r\n");
 		 printValue(currentValue, "Current = %.2f mA \r\n");
 		 printValue(power, "Power = %.2f mW \n\r ==================== \n\r");
 	 }
