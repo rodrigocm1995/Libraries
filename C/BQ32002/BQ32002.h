@@ -15,4 +15,5 @@
 #define BQ32002_YEARS_REGISTER                  0x06
 #define BQ32002_CAL_CFG1_REGISTER               0x07
 #define BQ32002_CFG2_REGISTER                   0x09
-#define TMP117_DEVICE_ID_REGISTER               0x0F
+#define BQ32002_SF_KEY_1_REGISTER               0x20
+#define BQ32002_SF_KEY_2_REGISTER               0x21
