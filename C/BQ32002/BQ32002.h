@@ -14,5 +14,5 @@
 #define BQ32002_MONTH_REGISTER                  0x05
 #define BQ32002_YEARS_REGISTER                  0x06
 #define BQ32002_CAL_CFG1_REGISTER               0x07
-#define TMP117_EEPROM3_REGISTER                 0x08
+#define BQ32002_CFG2_REGISTER                   0x09
 #define TMP117_DEVICE_ID_REGISTER               0x0F
