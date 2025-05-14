@@ -2,7 +2,7 @@
 
 uint8_t TLC5917_Init(TLC5917_t *tlc5917,
                      SPI_HandleTypeDef *spiHandle, 
-					 GPIO_TypeDef *csPort,
+		     GPIO_TypeDef *csPort,
                      uint16_t csPin)
 {
 	tlc5917->spiHandle = spiHandle;
