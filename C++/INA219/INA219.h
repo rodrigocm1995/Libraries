@@ -1,177 +1,288 @@
 /**
-  ******************************************************************************
-  * @file           : INA219.h
-  * @brief          : INA219 Library
-  ******************************************************************************
-  * The INA219 is a current shunt and power monitor with a I2C or SMBUS-compati-
-  * ble interface. The device monitors both both shunt voltage drop and bus sup-
-  * ply voltagewith programmable conversion times and filtering. A programmable 
-  * calibration value, combined with an internal multiplier, enables direct read
-  * outs of current in amperes. An additional multiplying register calculates po
-  * wer in watts.
+    *******************************************************************************************
+  * @file           : INA229.h
+  * @brief          : INA229 Library
+    *******************************************************************************************
+
+  * The INA229 is an ultra-precise digital power monitor with a 20-bit delta-sigma ADC specifi-
+  * cally designed for current-sensing applications. The device can measure a full-scale diffe-
+  * rential input of ±163.84 mV or ±40.96 mV across a resistive shunt sense element with commo-
+  * n mode voltage support from -0.3 V to + 85V.
   * 
+  * The INA229 reports current, bus voltage, temperature, power, energy and charge accumulation
+  * while employing a precision ±0.5% integrated oscillator, all while performing the needed c-
+  * alculation in the backgrounds. The integrated temperature sensor is ±1°C accurate for die 
+  * temperature measurement and is useful in monitoring the system ambient temperature.
+  * 
+  * The low offset and gain drift design of the INA229 allows the device to be used in precise
+  * systems that do not undergo multi-temperature calibration during manufacturing. Further, t-
+  * he very low offset voltage and noise allow for use in mA to kA sensing applications and pr-
+  * ovide a wide dynamic range without significant power dissipation losses on the sensing shu-
+  * nt element. The low input bias current of the device permits the use of larger current-sen-
+  * se resistors, thus providing accurate current measurements in the micro-amp range.
+  * 
+  * The device allows for selectable ADC conversion times from 50 µs to 4.12 ms as well as sam-
+  * ple averaging from 1x to 1024x, which further helps reduce the noise of the measured data. 
+  *   
   * @details
-  * Senses Bus Voltages from 0 to 26 V
-  * Reports Current, Voltage, and Power
-  * 16 Programmable Addresses
-  * High Accuracy: 0.5% (Maximum) Over Temperature (INA219B)
-  * Filtering Options
-  * Calibration Registers
-  * SOT23-8 and SOIC-8 Packages
+  * High Resolution, 20-bit delta-sigma ADC
+  * Current monitor accuracy:
+  * - Offset voltage: ±1 µV (maximum)
+  * - Offset drift: ±0.01 µV/°C (maximum)
+  * - Gain error: ±0.05% (maximum)
+  * - Gain error drift: ±20 ppm/°C (maximum)
+  * - Common mode rejection: 154 dB (minimum)
+  * Power monitoring accuracy:
+  * - 0.5% full scale, -40°C to +125°C (maximum)
+  * Energy and charge accuracy:
+  * - 1.0% full scale (maximum)
+  * Fast alert response: 75 ns
+  * Wide common-mode range: -0.3 V to +85 V
+  * Bus voltage sense input: 0 V to 85 V
+  * Shunt full-scale differential range: ±163.84 mV / ± 40.96 mV
+  * Input bias current: 2.5 nA (maximum)
+  * Temperature sensor: ±1°C (maximum at 25°C)
+  * Programmable resistor temperature compensation
+  * Programmable conversion time and averaging 
+  * 10-MHz SPI communication interface
+  * Operates from a 2.7 V to 5.5 V supply:
+  * - Operational current: 640 µA (typical)
+  * - Shuntdown current: 5 µA (maximum) 
   * 
   * @example
-  * INA219_CALIBRATION_REGISTER is calculated based on the next equation
-  * Cal = trunc(0.04096/(Current_LSB * R_Shunt)).....................(1)
   * 
-  * Where:
-  *   0.04096 is an internal fixed value used to insure scaling
-  *   Current_LSB = Maximum Expected Current / 2^15..................(2)
-  * 
-  * If user assumes a maximum current of 1A and a R_Shunt of 100mOhm then using
-  * (2)
-  * Current_LSB = 1/2^15 = 30.51 uA/bit .............................(3)
-  * 
-  * Replacing (3) in (1) yields
-  * Cal = (0.04096)/(30.51exp(-6) * 100exp(-3)) = 13425
-  * This value must be written in the 16-bit Calibration Register
-  * 
-  * 
-  ******************************************************************************
+  *******************************************************************************************
   */
 
-#ifndef _LIB_MYINA219_
-#define _LIB_MYINA219_
+#ifndef INC_INA229_H_
+#define INC_INA229_H_
 
-#include <Arduino.h>
-#include <Math.h>
-#include <Wire.h>
+#include "stm32f3xx_hal.h"
 
-// Addresses
-#define INA219_I2C_ADDRESS1                      0x40
-#define INA219_I2C_ADDRESS2                      0x41
-#define INA219_I2C_ADDRESS3                      0x44
-#define INA219_I2C_ADDRESS4                      0x45
-// end of addresses
+#define CONFIG              0x00U
+#define ADC_CONFIG          0x01U
+#define SHUNT_CAL           0x02U
+#define SHUNT_TEMPCO        0x03U
+#define VSHUNT              0x04U
+#define VBUS                0x05U
+#define DIETEMP             0x06U
+#define CURRENT             0x07U
+#define POWER               0x08U
+#define ENERGY              0x09U
+#define CHARGE              0x0AU
+#define DIAG_ALERT          0x0BU
+#define SOVL                0x0CU
+#define SUVL                0x0DU
+#define BOVL                0x0EU
+#define BUVL                0x0FU
+#define TEMP_LIMIT          0x10U
+#define PWR_LIMIT           0x11U
+#define MANUFACTURER_ID     0x3EU
+#define DEVICE_ID           0x3FU
 
-#define INA219_TRIALS                             5
-#define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
+#define INA229_SCALING_FACTOR 				13107.2E6
+#define INA229_TEMP_CONV_FACTOR 			7.8125E-3
+#define INA229_VSHUNT_CONV_FACTOR_ADC_0		312.5E-9
+#define INA229_VSHUNT_CONV_FACTOR_ADC_1		78.125E-9
+#define INA229_VBUS_CONV_FACTOR				195.3125e-9
 
-// Registers
-#define INA219_CONFIGURATION_REG                  0x00   // All-register reset, settings for bus voltage range, PGA gain, ADC Resolution/averaging
-#define INA219_SHUNTVOLTAGE_REG                   0x01   // Shunt voltage measurement data
-#define INA219_BUSVOLTAGE_REG                     0x02   // Bus voltage measurement data
-#define INA219_POWER_REG                          0x03   // power measurement data
-#define INA219_CURRENT_REG                        0x04   // Contains the value of the current flowing through the shunt resistor
-#define INA219_CALIBRATION_REG                    0x05   // Sets full-scale range and LSB of current and power measurements. Overall system calibration
-// End of registers
+#define CHECK_BIT(var,pos) ((var) &  (1 << (pos)))
+#define _SET_BIT(var,pos)  ((var) |= (1 << (pos)))
+#define _CLEAR_BIT(var,pos)  ((var) &= ~(1 << (pos)))
 
-#define INA219_BUS_VOLTAGE_RANGE_16V            0x0000  
-#define INA219_BUS_VOLTAGE_RANGE_32V            0x2000
-#define INA219_PGA_GAIN_ONE                     0x0000
-#define INA219_PGA_GAIN_ONE_HALF                0x0800
-#define INA219_PGA_GAIN_ONE_QUARTER             0x1000
-#define INA219_PGA_GAIN_ONE_EIGHTH              0x1800
-#define INA219_BUS_ADC_9BIT_RESOLUTION          0x0000
-#define INA219_BUS_ADC_10BIT_RESOLUTION         0x0080
-#define INA219_BUS_ADC_11BIT_RESOLUTION         0x0100
-#define INA219_BUS_ADC_12BIT_RESOLUTION         0x0180
-#define INA219_BUS_ADC_2_SAMPLES                0x0480      
-#define INA219_BUS_ADC_4_SAMPLES                0x0500
-#define INA219_BUS_ADC_8_SAMPLES                0x0580
-#define INA219_BUS_ADC_16_SAMPLES               0x0600
-#define INA219_BUS_ADC_32_SAMPLES               0x0680
-#define INA219_BUS_ADC_64_SAMPLES               0x0700
-#define INA219_BUS_ADC_128_SAMPLES              0x0780
-
-#define INA219_SHUNT_VOLTAGE_9BIT_RESOLUTION    0x0000
-#define INA219_SHUNT_VOLTAGE_10BIT_RESOLUTION   0x0008
-#define INA219_SHUNT_VOLTAGE_11BIT_RESOLUTION   0x0010
-#define INA219_SHUNT_VOLTAGE_12BIT_RESOLUTION   0x0018
-#define INA219_SHUNT_VOLTAGE_12BIT_RESOLUTION   0x0018
-#define INA219_SHUNT_VOLTAGE_2_SAMPLES          0x0048
-#define INA219_SHUNT_VOLTAGE_4_SAMPLES          0x0050
-#define INA219_SHUNT_VOLTAGE_8_SAMPLES          0x0058
-#define INA219_SHUNT_VOLTAGE_16_SAMPLES         0x0060
-#define INA219_SHUNT_VOLTAGE_32_SAMPLES         0x0068
-#define INA219_SHUNT_VOLTAGE_64_SAMPLES         0x0070
-#define INA219_SHUNT_VOLTAGE_128_SAMPLES        0x0078
+//********************************************************************************************
+//CONFIG REGISTER
+typedef enum {
+	INA229_0_S				= 0x0000,
+	INA229_2_MS				= 0x0040,
+	INA229510_MS			= 0x3FC0,
+}Ina229_Conv_Dly;
 
 typedef enum {
-  INA219_BUSVOLTAGERANGE_16V                  = 0x0000, 
-  INA219_BUSVOLTAGERANGE_32V                  = 0x2000
-} BusVoltageRange_t;
+	INA229_TEMP_COMP_DIS	= 0x0000,
+	INA229_TEMP_COMP_ENA	= 0x0020,
+}Ina229_Temp_Comp;
 
 typedef enum {
-  INA219_PGAGAIN_40_MILI_VOLT                 = 0x0000, // Range +- 40mV
-  INA219_PGAGAIN_80_MILI_VOLT                 = 0x0800, // Range +- 80mV
-  INA219_PGAGAIN_160_MILI_VOLT                = 0x1000, // Range +- 160mV
-  INA219_PGAGAIN_320_MILI_VOLT                = 0x1800  // Range +- 320mV 
-} ShuntPGAGain_t;
+  INA229_ADC_163DOT84_MILIVOLT    = 0x0000, // ADCRANGE = 0 (±163.84mV) = 312.5 nV/LSB
+  INA229_ADC_40DOT96_MILIVOLT     = 0x0010  // ADCRANGE = 1 (±40.96mV)  = 78.125 nV/LSB
+}Ina229_Adc_Range;
+//END OF CONFIG REGISTER
+//********************************************************************************************
+
+
+//********************************************************************************************
+//ADC CONFIG REGISTER
+typedef enum {
+	INA229_SHUNTDOWN				= 0x0000,
+	INA229_TRIG_BUS					= 0x1000,
+	INA229_TRIG_SHUNT				= 0x2000,
+	INA229_TRIG_BUS_SHUNT			= 0x3000,
+	INA229_TRIG_TEMP				= 0x4000,
+	INA229_TRIG_TEMP_BUS			= 0x5000,
+	INA229_TRIG_TEMP_SHUNT			= 0x6000,
+	INA229_TRIG_BUS_SHUNT_TEMP		= 0x7000,
+	INA229_BUS_CONT					= 0x9000,
+	INA229_SHUNT_CONT				= 0xA000,
+	INA229_BUS_SHUNT_CONT			= 0xB000,
+	INA229_TEMP_CONT				= 0xC000,
+	INA229_BUS_TEMP					= 0xD000,
+	INA229_TEMP_SHUNT				= 0xE000,
+	INA229_BUS_SHUNT_TEMP_CONT		= 0xF000,
+}Ina229_Mode;
 
 typedef enum {
-  INA219_BUS_ADC_9_BIT_RESOLUTION             = 0x0000, // 84 us
-  INA219_BUS_ADC_10_BIT_RESOLUTION            = 0x0080, // 148 us
-  INA219_BUS_ADC_11_BIT_RESOLUTION            = 0x0100, // 276 us
-  INA219_BUS_ADC_12_BIT_RESOLUTION            = 0x0180, // 532 us
-  INA219_BUS_ADC_2SAMPLES                     = 0x0480, // 1.06 us
-  INA219_BUS_ADC_4SAMPLES                     = 0x0500, // 2.13 ms
-  INA219_BUS_ADC_8SAMPLES                     = 0x0580, // 4.26 ms
-  INA219_BUS_ADC_16SAMPLES                    = 0x0600, // 8.51 ms
-  INA219_BUS_ADC_32SAMPLES                    = 0x0680, // 17.02 ms
-  INA219_BUS_ADC_64SAMPLES                    = 0x0700, // 34.05 ms
-  INA219_BUS_ADC_128SAMPLES                   = 0x0780  // 68.10 ms
-} BusADCResolution_t;
+	INA229_VBUS_50_US				= 0x0000,
+	INA229_VBUS_84_US				= 0x0200,
+	INA229_VBUS_150_US				= 0x0400,
+	INA229_VBUS_280_US				= 0x0600,
+	INA229_VBUS_540_US				= 0x0800,
+	INA229_VBUS_1052_US				= 0x0A00,
+	INA229_VBUS_2074_US				= 0x0C00,
+	INA229_VBUS_4120_US				= 0x0E00,
+}Ina229_VBus_CT;
 
 typedef enum {
-  INA219_SHUNT_ADC_9_BIT_RESOLUTION           = 0x0000, // 84 us
-  INA219_SHUNT_ADC_10_BIT_RESOLUTION          = 0x0008, // 148 us
-  INA219_SHUNT_ADC_11_BIT_RESOLUTION          = 0x0010, // 276 us
-  INA219_SHUNT_ADC_12_BIT_RESOLUTION          = 0x0018, // 532 us
-  INA219_SHUNT_ADC_2SAMPLES                   = 0x0048, // 1.06 ms
-  INA219_SHUNT_ADC_4SAMPLES                   = 0x0050, // 2.13 ms
-  INA219_SHUNT_ADC_8SAMPLES                   = 0x0058, // 4.26 ms
-  INA219_SHUNT_ADC_16SAMPLES                  = 0x0060, // 8.51 ms
-  INA219_SHUNT_ADC_32SAMPLES                  = 0x0068, // 17.02 ms
-  INA219_SHUNT_ADC_64SAMPLES                  = 0x0070, // 34.05 ms
-  INA219_SHUNT_ADC_128SAMPLES                 = 0x0078  // 68.10 ms
-} ShuntADCResolution_t;
+	INA229_SHUNT_50_US				= 0x0000,
+	INA229_SHUNT_84_US				= 0x0040,
+	INA229_SHUNT_150_US				= 0x0080,
+	INA229_SHUNT_280_US				= 0x00C0,
+	INA229_SHUNT_540_US				= 0x0100,
+	INA229_SHUNT_1052_US			= 0x0140,
+	INA229_SHUNT_2074_US			= 0x0180,
+	INA229_SHUNT_4120_US			= 0x01C0,
+}Ina229_Shunt_CT;
 
 typedef enum {
-  INA219_POWERDOWN_MODE                       = 0x0000,
-  INA219_SHUNTVOLTAGETRIG_MODE                = 0x0001,
-  INA219_BUSVOLTAGETRIG_MODE                  = 0x0002,
-  INA219_SHUNTBUS_TRIG_MODE                   = 0x0003,
-  INA219_ADCOFF_DISABLED_MODE                 = 0x0004,
-  INA219_SHUNTVOLTAGE_CONTINUOUS_MODE         = 0x0005,
-  INA219_BUSVOLTAGE_CONTINUOUS_MODE           = 0x0006,
-  INA219_SHUNTBUS_CONTINUOUS_MODE             = 0x0007
-} Mode_t;
+	INA229_TEMP_50_US				= 0x0000,
+	INA229_TEMP_84_US				= 0x0008,
+	INA229_TEMP_150_US				= 0x0010,
+	INA229_TEMP_280_US				= 0x0018,
+	INA229_TEMP_540_US				= 0x0020,
+	INA229_TEMP_1052_US				= 0x0028,
+	INA229_TEMP_2074_US				= 0x0030,
+	INA229_TEMP_4120_US				= 0x0038,
+}Ina229_Temp_CT;
 
-class INA219{
-  public:
-    INA219(); // Constructor. It must be defined with the same name as the class
-    bool     begin();
-    bool     isConnected();
-    uint16_t defaultInit(uint8_t devAddress, TwoWire *wire = &Wire);
-    uint16_t init(uint8_t devAddress, BusVoltageRange_t busvoltageRange, ShuntPGAGain_t pgaGain, BusADCResolution_t busAdcResolution, ShuntADCResolution_t shuntAdcResolution, Mode_t mode, TwoWire *wire = &Wire);
-    uint16_t getConfigRegister();
-    uint16_t setCalibration(float rShuntValue, float maxCurrent);
-    uint16_t getCalibrationRegister();
-    uint8_t  correctedFullScaleCalibration(float inaCurrent, float measuredShuntCurrent);
-    uint16_t writeRegister(uint8_t registerAddress, uint16_t value);
-    uint16_t readRegister(uint8_t registerAddress);
-    bool     dataReady();
-    float    readShuntVoltage();
-    float    readBusVoltage();
-    float    readCurrent();  
-    float    readPower();
+typedef enum {
+	INA229_1_SAMPLE					= 0x0000,
+	INA229_4_SAMPLES				= 0x0001,
+	INA229_16_SAMPLES				= 0x0002,
+	INA229_64_SAMPLES				= 0x0003,
+	INA229_128_SAMPLES				= 0x0004,
+	INA229_256_SAMPLES				= 0x0005,
+	INA229_512_SAMPLES				= 0x0006,
+	INA229_1024_SAMPLES				= 0x0007
+}Ina229_Avg;
+//END OF ADC CONFIG REGISTER
+//********************************************************************************************
 
-  private:
-    uint8_t _deviceAddress = INA219_I2C_ADDRESS2;
-    float   _rShunt;
-    float   _maximumCurrent;
-    float   _currentLSB;
-    TwoWire * _wire; //The generic connection to user's chosen I2C hardware
-};
+typedef enum {
+	INA229_TRANSPARENT				= 0x0000,
+	INA229_LATCHED					= 0x8000,
+}INA229_Alert_Latch;
+
+typedef enum {
+	INA229_DIS_CNVR_ALERT_PIN		= 0x0000,
+	INA229_EN_CNVR_ALERT_PIN		= 0x4000,
+}Ina229_CNVR;
+
+typedef enum {
+	INA229_DIS_COMPARISON_ALERT		= 0x0000,
+	INA229_EN_COMPARISON_ALERT		= 0x2000,
+}INA229_Slow_Alert;
+
+typedef enum {
+	INA229_ACTIVE_LOW_ALERT			= 0x0000,
+	INA229_ACTIVE_HIGH_ALERT		= 0x1000,
+}INA229_Alert_Polarity;
+
+
+typedef struct
+{
+  SPI_HandleTypeDef *spiHandle;
+  GPIO_TypeDef      *csPort;
+  uint16_t           csPin;
+
+  uint16_t			configRegister;
+  uint16_t			adcConfigRegister;
+  uint16_t 			shuntCalRegister;
+  uint16_t			shuntTempcoRegister;
+  uint16_t 			diagAlertRegister;
+  uint16_t			sovlRegister;
+  uint16_t 			suvlRegister;
+  uint16_t			bovlRegister;
+  uint16_t 			buvlRegister;
+  uint16_t			tempLimitRegister;
+  uint16_t			pwrLimitRegister;
+
+  _Bool				adcRange;
+  double			currentLsb;
+  double 			shuntResistor;
+  double 			maximumCurrent;
+  double 			shuntCal;
+  double 			vshuntConvFactor;
+}INA229_t;
+
+
+void INA229_Init(INA229_t *ina229,
+		SPI_HandleTypeDef *spiHandle,
+		GPIO_TypeDef *csPort,
+		uint16_t csPin);
+
+void INA229_Custom_Init(INA229_t *ina229,
+		SPI_HandleTypeDef *spiHandle,
+		GPIO_TypeDef *csPort,
+		uint16_t csPin,
+		Ina229_Conv_Dly dly,
+		Ina229_Temp_Comp tpComp,
+		Ina229_Adc_Range adcRange);
+
+void INA229_ADC_Config(INA229_t *ina229,
+		Ina229_Mode mode,
+		Ina229_VBus_CT cbusCt,
+		Ina229_Shunt_CT shuntCt,
+		Ina229_Temp_CT tempCt,
+		Ina229_Avg avg);
+
+void INA229_Temp_ADC_Config(INA229_t *ina229,
+		Ina229_Mode,
+		Ina229_Temp_CT tempCt,
+		Ina229_Avg avg);
+
+uint64_t INA229_ReadRegister(INA229_t *ina229,
+		uint8_t registerAddress);
+
+uint8_t INA229_WriteRegister(INA229_t *ina229,
+		uint8_t registerAddress,
+		uint16_t value);
+
+void INA229_Reset_Registers(INA229_t *ina229);
+
+void INA229_SetCalibration(INA229_t *ina229,
+		double shuntResistor,
+		uint16_t maxCurrent);
+
+double INA229_Get_Current(INA229_t *ina229);
+
+double INA229_Get_Shunt_Voltage(INA229_t *ina229);
+
+double INA229_Get_Bus_Voltage(INA229_t *ina229);
+
+double INA229_Get_Power(INA229_t *ina229);
+
+double INA229_Get_Energy(INA229_t *ina229);
+
+double INA229_Get_Charge(INA229_t *ina229);
+
+double INA229_Get_Temperature(INA229_t *ina229);
+
+void INA229_Set_Alert(INA229_t *ina229);
+
+_Bool INA229_Get_Energy_OverFlow(INA229_t *ina229);
+
+_Bool INA229_Get_Charge_OverFlow(INA229_t *ina229);
+
+_Bool INA229_Data_Ready(INA229_t *ina229);
 
 #endif
