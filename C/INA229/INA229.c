@@ -58,8 +58,10 @@ void INA229_Custom_Init(INA229_t *ina229,
 	if (!CHECK_BIT(config,4))
 	{
 		ina229->adcRange = 0;
+		ina229->vshuntConvFactor = INA229_VSHUNT_CONV_FACTOR_ADC_0;
 	}else{
 		ina229->adcRange = 1;
+		ina229->vshuntConvFactor = INA229_VSHUNT_CONV_FACTOR_ADC_1;
 	}
 
 	INA229_WriteRegister(ina229, CONFIG, config);
@@ -76,6 +78,15 @@ void INA229_ADC_Config(INA229_t *ina229,
 	INA229_WriteRegister(ina229, ADC_CONFIG, adcConfig);
 }
 
+void INA229_Temp_ADC_Config(INA229_t *ina229,
+		Ina229_Mode mode,
+		Ina229_Temp_CT tempCt,
+		Ina229_Avg avg)
+{
+	uint16_t tempValue = mode | tempCt | avg;
+	INA229_WriteRegister(ina229, ADC_CONFIG, tempValue);
+}
+
 uint8_t INA229_WriteRegister(INA229_t *ina229, uint8_t registerAddress, uint16_t value)
 {
   uint8_t txBuf[3] = {0}; // All Writable registers are 2 bytes
@@ -86,8 +97,11 @@ uint8_t INA229_WriteRegister(INA229_t *ina229, uint8_t registerAddress, uint16_t
   txBuf[2] = LSB(value);
 
   HAL_GPIO_WritePin(ina229->csPort, ina229->csPin, GPIO_PIN_RESET);
-  uint8_t status = (HAL_SPI_TransmitReceive(ina229->spiHandle, txBuf, rxBuf, 3, HAL_MAX_DELAY) == HAL_OK);
-  //while((HAL_SPI_TransmitReceive(ina229->spiHandle, txBuf, rxBuf, 3, HAL_MAX_DELAY) != HAL_OK));
+  uint8_t status;
+  //uint8_t status = (HAL_SPI_TransmitReceive(ina229->spiHandle, txBuf, rxBuf, 3, HAL_MAX_DELAY) == HAL_OK);
+  while((HAL_SPI_TransmitReceive(ina229->spiHandle, txBuf, rxBuf, 3, HAL_MAX_DELAY) != HAL_OK)){
+	  status = HAL_ERROR;
+  }
   HAL_GPIO_WritePin(ina229->csPort, ina229->csPin, GPIO_PIN_RESET);
 
   return status;
@@ -106,7 +120,7 @@ uint64_t INA229_ReadRegister(INA229_t *ina229, uint8_t registerAddress)
   HAL_GPIO_WritePin(ina229->csPort, ina229->csPin, GPIO_PIN_RESET);
   //uint8_t status = (HAL_SPI_TransmitReceive(ina229->spiHandle, txBuf, rxBuf, INA229RegSize[registerAddress]+1, 100) == HAL_OK);
   while((HAL_SPI_TransmitReceive(ina229->spiHandle, txBuf, rxBuf, INA229RegSize[registerAddress]+1, HAL_MAX_DELAY) != HAL_OK));
-  while(HAL_SPI_GetState(ina229->spiHandle) != HAL_SPI_STATE_READY);
+  //while(HAL_SPI_GetState(ina229->spiHandle) != HAL_SPI_STATE_READY);
   HAL_GPIO_WritePin(ina229->csPort, ina229->csPin, GPIO_PIN_RESET);
 
   //Combine bytes
@@ -161,7 +175,17 @@ double INA229_Get_Current(INA229_t *ina229)
 double INA229_Get_Shunt_Voltage(INA229_t *ina229)
 {
 	double shuntVoltage = INA229_ReadRegister(ina229, VSHUNT);
+	shuntVoltage *= ina229->vshuntConvFactor;
 
+	return shuntVoltage;
+}
+
+double INA229_Get_Bus_Voltage(INA229_t *ina229)
+{
+	double busVoltage = INA229_ReadRegister(ina229, VBUS);
+	busVoltage *= INA229_VBUS_CONV_FACTOR;
+
+	return busVoltage;
 }
 
 double INA229_Get_Power(INA229_t *ina229)
@@ -226,3 +250,8 @@ _Bool INA229_Data_Ready(INA229_t *ina229)
 	return isDataReady;
 }
 
+
+void INA229_Set_Alert(INA229_t *ina229)
+{
+
+}
