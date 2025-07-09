@@ -18,7 +18,7 @@ const uint8_t INA229RegSize[maxRegAddress+1] = {
 
 void INA229_Init(INA229_t *ina229,
                     SPI_HandleTypeDef *spiHandle, 
-					GPIO_TypeDef *csPort,
+		    GPIO_TypeDef *csPort,
                     uint16_t csPin)
 {
 	ina229->spiHandle = spiHandle;
