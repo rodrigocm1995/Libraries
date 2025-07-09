@@ -84,6 +84,7 @@
 #define INA229_TEMP_CONV_FACTOR 			7.8125E-3
 #define INA229_VSHUNT_CONV_FACTOR_ADC_0		312.5E-9
 #define INA229_VSHUNT_CONV_FACTOR_ADC_1		78.125E-9
+#define INA229_VBUS_CONV_FACTOR				195.3125e-9
 
 #define CHECK_BIT(var,pos) ((var) &  (1 << (pos)))
 #define _SET_BIT(var,pos)  ((var) |= (1 << (pos)))
@@ -244,6 +245,11 @@ void INA229_ADC_Config(INA229_t *ina229,
 		Ina229_Temp_CT tempCt,
 		Ina229_Avg avg);
 
+void INA229_Temp_ADC_Config(INA229_t *ina229,
+		Ina229_Mode,
+		Ina229_Temp_CT tempCt,
+		Ina229_Avg avg);
+
 uint64_t INA229_ReadRegister(INA229_t *ina229,
 		uint8_t registerAddress);
 
@@ -260,6 +266,8 @@ void INA229_SetCalibration(INA229_t *ina229,
 double INA229_Get_Current(INA229_t *ina229);
 
 double INA229_Get_Shunt_Voltage(INA229_t *ina229);
+
+double INA229_Get_Bus_Voltage(INA229_t *ina229);
 
 double INA229_Get_Power(INA229_t *ina229);
 
