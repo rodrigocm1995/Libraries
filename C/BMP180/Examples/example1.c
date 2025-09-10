@@ -1,267 +1,360 @@
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file           : main.c
+  * @brief          : Main program body
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2024 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+/* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "math.h"
+
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
 #include "BMP180.h"
+#include <stdio.h>
+#include <locale.h>
+/* USER CODE END Includes */
+
+/* Private typedef -----------------------------------------------------------*/
+/* USER CODE BEGIN PTD */
+
+/* USER CODE END PTD */
+
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
+
+/* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+
+/* USER CODE END PM */
+
+/* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
+
+UART_HandleTypeDef huart2;
+
+/* USER CODE BEGIN PV */
+Bmp180_t bmp180;
+bmp180_cal_coeff_t calCoeff;
+unsigned char ch = 248;
+static long temperature = 0;
+static long pressure = 0;
+//static long UP = 0;
+/* USER CODE END PV */
+
+/* Private function prototypes -----------------------------------------------*/
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_USART2_UART_Init(void);
+static void MX_I2C1_Init(void);
+/* USER CODE BEGIN PFP */
+void printValue(int32_t value, char outputString[]);
+void printTemp(int32_t temp);
+/* USER CODE END PFP */
+
+/* Private user code ---------------------------------------------------------*/
+/* USER CODE BEGIN 0 */
+
+/* USER CODE END 0 */
 
 /**
-  * @brief  Write an 8-bit data in blocking mode to a specific memory address
-  * @param  bmp180 Pointer to a I2C_HandleTypeDef structure that contains
-  *                the configuration information for the specified I2C.
-  * @param  registerAddress Target device address: The device 7 bits address value
-  *         in datasheet must be shifted to the left before calling the interface
-  * @param  value The data that must be written in the register
+  * @brief  The application entry point.
+  * @retval int
   */
-
-static long X1 = 0;
-static long X2 = 0;
-static long X3 = 0;
-static long B3 = 0;
-static long B5 = 0;
-static long B6 = 0;
-static unsigned long B4 = 0;
-static unsigned long B7 = 0;
-static long p = 0;
-static long altitude = 0;
-static long UP = 0;
-
-
-
-void writeRegister8(Bmp180_t *bmp180, uint8_t registerAddress, uint8_t value)
+int main(void)
 {
-  uint8_t address[1];
-  address[0] = value;
-  uint8_t isDeviceReady;
-  
-  isDeviceReady = HAL_I2C_IsDeviceReady(bmp180->hi2c, (bmp180->devAddress) << 1, BMP180_TRIALS, HAL_MAX_DELAY);
 
-  if (isDeviceReady == HAL_OK)
+  /* USER CODE BEGIN 1 */
+
+  /* USER CODE END 1 */
+
+  /* MCU Configuration--------------------------------------------------------*/
+
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
+
+  /* USER CODE BEGIN Init */
+
+  /* USER CODE END Init */
+
+  /* Configure the system clock */
+  SystemClock_Config();
+
+  /* USER CODE BEGIN SysInit */
+
+  /* USER CODE END SysInit */
+
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_USART2_UART_Init();
+  MX_I2C1_Init();
+  /* USER CODE BEGIN 2 */
+  //bmp180Init(&bmp180, &hi2c1, BMP180_DEFAULT_ADDRESS);
+  bmp180CustomInit(&bmp180, &hi2c1, BMP180_DEFAULT_ADDRESS, ULTRA_HIGH_RESOLUTION);
+  readCalibrationCoefficients(&bmp180, &calCoeff);
+
+  printValue(calCoeff.bmpAC1, "AC1 value %d\r\n");
+  printValue(calCoeff.bmpAC2, "AC2 value %d\r\n");
+  printValue(calCoeff.bmpAC3, "AC3 value %d\r\n");
+  printValue(calCoeff.bmpAC4, "AC4 value %d\r\n");
+  printValue(calCoeff.bmpAC5, "AC5 value %d\r\n");
+  printValue(calCoeff.bmpAC6, "AC6 value %d\r\n");
+
+  printValue(calCoeff.bmpB1, "B1 value %d\r\n");
+  printValue(calCoeff.bmpB2, "B2 value %d\r\n");
+
+  printValue(calCoeff.bmpMB, "MB value %d\r\n");
+  printValue(calCoeff.bmpMC, "MC value %d\r\n");
+  printValue(calCoeff.bmpMD, "MD value %d\r\n");
+
+  uint8_t deviceId = readBmp180Id(&bmp180);
+  printValue(deviceId, "Device ID: 0x%02X\r\n");
+  /* USER CODE END 2 */
+
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
+  while (1)
   {
-    HAL_I2C_Mem_Write(bmp180->hi2c, (bmp180->devAddress) << 1, registerAddress, I2C_MEMADD_SIZE_8BIT, (uint8_t*)address, I2C_MEMADD_SIZE_8BIT, HAL_MAX_DELAY);
+	  //UT = readUncompensatedTemperature(&bmp180);
+	  temperature = getTemperature(&bmp180, &calCoeff);
+	  printValue(temperature, "Temperature: %d C \r\n");
+	  //printTemp(temperature);
+
+	  //UP = readUncompensatedPressure(&bmp180);
+	  pressure = getAltitude(&bmp180, &calCoeff);
+	  printValue(pressure, "Altitude: %d m (over sea level)\r\n");
+	  HAL_Delay(1000);
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
+  }
+  /* USER CODE END 3 */
+}
+
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
+void SystemClock_Config(void)
+{
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
+
+  /** Initializes the RCC Oscillators according to the specified parameters
+  * in the RCC_OscInitTypeDef structure.
+  */
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
+  RCC_OscInitStruct.PLL.PREDIV = RCC_PREDIV_DIV1;
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Initializes the CPU, AHB and APB buses clocks
+  */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_I2C1;
+  PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
+  PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_HSI;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
+  {
+    Error_Handler();
   }
 }
 
 /**
-  * @brief  Write a 16-bit data in blocking mode to a specific memory address
-  * @param  bmp180 Pointer to a I2C_HandleTypeDef structure that contains
-  *                the configuration information for the specified I2C.
-  * @param  registerAddress Target device address: The device 7 bits address value
-  *         in datasheet must be shifted to the left before calling the interface
-  * @param  value The data that must be written in the register
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
   */
-void writeRegister16(Bmp180_t *bmp180, uint8_t registerAddress, uint16_t value)
+static void MX_I2C1_Init(void)
 {
-  uint8_t address[2];
-  uint8_t isDeviceReady;
 
-  address[0] = (value >> 8) & 0xFF;
-  address[1] = (value >> 0) & 0xFF;
-  
-  isDeviceReady = HAL_I2C_IsDeviceReady(bmp180->hi2c, (bmp180->devAddress) << 1, BMP180_TRIALS, HAL_MAX_DELAY);
+  /* USER CODE BEGIN I2C1_Init 0 */
 
-  if (isDeviceReady == HAL_OK)
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.Timing = 0x0010020A;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
   {
-    HAL_I2C_Mem_Write(bmp180->hi2c, (bmp180->devAddress) << 1, registerAddress, I2C_MEMADD_SIZE_16BIT, (uint8_t*)address, I2C_MEMADD_SIZE_16BIT, HAL_MAX_DELAY);
-  }
-}
-
-/**
-  * @brief  Read an 8-bit data length in blocking mode from a specific memory address
-  * @param  hi2c Pointer to a I2C_HandleTypeDef structure that contains
-  *                the configuration information for the specified I2C.
-  * @param  registerAddress Target device address: The device 7 bits address value
-  * @retval 16-bit data read from register's device
-  */
-uint8_t readRegister8(Bmp180_t *bmp180, uint8_t registerAddress)
-{
-  uint8_t registerResponse[1] = {0};
-  uint8_t isDeviceReady;
-
-  isDeviceReady = HAL_I2C_IsDeviceReady(bmp180->hi2c, (bmp180->devAddress) << 1, BMP180_TRIALS, HAL_MAX_DELAY);
-
-  if (isDeviceReady == HAL_OK)
-  {
-    HAL_I2C_Mem_Read(bmp180->hi2c, (bmp180->devAddress) << 1, registerAddress, I2C_MEMADD_SIZE_8BIT, registerResponse, sizeof(registerResponse), HAL_MAX_DELAY);
+    Error_Handler();
   }
 
-  return registerResponse[0];
-}
-
-/**
-  * @brief  Read an 16-bit data length in blocking mode from a specific memory address
-  * @param  hi2c Pointer to a I2C_HandleTypeDef structure that contains
-  *                the configuration information for the specified I2C.
-  * @param  registerAddress Target device address: The device 7 bits address value
-  * @retval 16-bit data read from register's device
+  /** Configure Analogue filter
   */
-uint16_t readRegister16(Bmp180_t *bmp180, uint8_t registerAddress)
-{
-  uint8_t registerResponse[2];
-  uint8_t isDeviceReady;
-
-  isDeviceReady = HAL_I2C_IsDeviceReady(bmp180->hi2c, (bmp180->devAddress) << 1, BMP180_TRIALS, HAL_MAX_DELAY);
-
-  if (isDeviceReady == HAL_OK)
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
   {
-    HAL_I2C_Mem_Read(bmp180->hi2c, (bmp180->devAddress) << 1, registerAddress, I2C_MEMADD_SIZE_8BIT, registerResponse, sizeof(registerResponse), HAL_MAX_DELAY);
+    Error_Handler();
   }
 
-  return ((registerResponse[0] << 8) | registerResponse[1]);
-}
-
-/**
-  * @brief  Read an 24-bit data length in blocking mode from a specific memory address
-  * @param  hi2c Pointer to a I2C_HandleTypeDef structure that contains
-  *                the configuration information for the specified I2C.
-  * @param  registerAddress Target device address: The device 7 bits address value
-  * @retval 16-bit data read from register's device
+  /** Configure Digital filter
   */
-uint32_t readRegister24(Bmp180_t *bmp180, uint8_t registerAddress)
-{
-  uint8_t registerResponse[3]= {0};
-  uint8_t isDeviceReady;
-
-  isDeviceReady = HAL_I2C_IsDeviceReady(bmp180->hi2c, (bmp180->devAddress) << 1, BMP180_TRIALS, HAL_MAX_DELAY);
-
-  if (isDeviceReady == HAL_OK)
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
   {
-    HAL_I2C_Mem_Read(bmp180->hi2c, (bmp180->devAddress) << 1, registerAddress, I2C_MEMADD_SIZE_8BIT, (int8_t*)registerResponse, sizeof(registerResponse), HAL_MAX_DELAY);
+    Error_Handler();
   }
-  uint16_t response = ((registerResponse[0] << 16) | registerResponse[1]<<8 | registerResponse[2]) >> (8 - (uint8_t)(bmp180->mode));
-  return response;
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
 }
 
 /**
-  * @brief  Initializes the CONFIGURATION register's device with default values 
-  * @param  ina236 points to an object of the type Ina236_t 
-  * @param  hi2c Pointer to a I2C_HandleTypeDef structure that contains
-  *                the configuration information for the specified I2C.
-  * @param  devAddress Target device address: The device 7 bits address value
-  * @retval 16-bit data read from register's device
+  * @brief USART2 Initialization Function
+  * @param None
+  * @retval None
   */
-void bmp180Init(Bmp180_t *bmp180, I2C_HandleTypeDef *i2c, uint8_t devAddress)
+static void MX_USART2_UART_Init(void)
 {
-  bmp180->hi2c = i2c;
-  bmp180->devAddress = devAddress;
-  bmp180->mode = 0;
 
-}
+  /* USER CODE BEGIN USART2_Init 0 */
 
-void bmp180CustomInit(Bmp180_t *bmp180, I2C_HandleTypeDef *i2c, uint8_t devAddress, AccuracyMode_t accuracyMode)
-{
-  bmp180->hi2c = i2c;
-  bmp180->devAddress = devAddress;
-  bmp180->mode = accuracyMode;
+  /* USER CODE END USART2_Init 0 */
 
-}
+  /* USER CODE BEGIN USART2_Init 1 */
 
-void readCalibrationCoefficients(Bmp180_t *bmp180, bmp180_cal_coeff_t *calCoeff){
+  /* USER CODE END USART2_Init 1 */
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart2.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart2.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART2_Init 2 */
 
-  for (uint8_t reg = BMP180_CAL_COEFF_AC1; reg <= BMP180_CAL_COEFF_MD; reg++){
-    uint32_t value = 0;
-    value = readRegister16(bmp180, reg);
+  /* USER CODE END USART2_Init 2 */
 
-    switch(reg){
-      case BMP180_CAL_COEFF_AC1: calCoeff->bmpAC1 = value;
-      break;
-
-      case BMP180_CAL_COEFF_AC2: calCoeff->bmpAC2 = value;
-      break;
-
-      case BMP180_CAL_COEFF_AC3: calCoeff->bmpAC3 = value;
-      break;
-
-      case BMP180_CAL_COEFF_AC4: calCoeff->bmpAC4 = value;
-      break;
-
-      case BMP180_CAL_COEFF_AC5: calCoeff->bmpAC5 = value;
-      break;
-
-      case BMP180_CAL_COEFF_AC6: calCoeff->bmpAC6 = value;
-      break;
-
-      case BMP180_CAL_COEFF_B1: calCoeff->bmpB1 = value;
-      break;
-
-      case BMP180_CAL_COEFF_B2: calCoeff->bmpB2 = value;
-      break;
-
-      case BMP180_CAL_COEFF_MB: calCoeff->bmpMB = value;
-      break;
-
-      case BMP180_CAL_COEFF_MC: calCoeff->bmpMC = value;
-      break;
-
-      case BMP180_CAL_COEFF_MD: calCoeff->bmpMD = value;
-      break;
-    }
-    HAL_Delay(5);
-  } 
 }
 
 /**
-  * @brief  Read the device ID, this reading assures the correct communication with the device
-  * @param  bmp180 points to an object of the type Bmp180_t
-  * @retval 8-bit data read from register's device. Must return 0x55
+  * @brief GPIO Initialization Function
+  * @param None
+  * @retval None
   */
-uint8_t readBmp180Id (Bmp180_t *bmp180){
-	uint8_t deviceId = readRegister8(bmp180, DEVICE_ID);
-	return deviceId;
+static void MX_GPIO_Init(void)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+/* USER CODE BEGIN MX_GPIO_Init_1 */
+/* USER CODE END MX_GPIO_Init_1 */
+
+  /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOF_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : B1_Pin */
+  GPIO_InitStruct.Pin = B1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LD2_Pin */
+  GPIO_InitStruct.Pin = LD2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+
+/* USER CODE BEGIN MX_GPIO_Init_2 */
+/* USER CODE END MX_GPIO_Init_2 */
 }
 
-
-uint16_t readUncompensatedTemperature(Bmp180_t *bmp180){
-	writeRegister8(bmp180, CTRL_MEAS, 0x2E);
-	HAL_Delay(5);
-	uint16_t response = readRegister16(bmp180, OUT_MSB);
-
-	return response;
+/* USER CODE BEGIN 4 */
+void printValue(int32_t value, char outputString[]){
+    char outputData[100] = {'\0'};
+    int32_t outputDataSize = 0;
+    outputDataSize = sprintf(outputData, outputString, value );
+    HAL_UART_Transmit(&huart2, outputData, outputDataSize, HAL_MAX_DELAY);
 }
 
-long getTemperature(Bmp180_t *bmp180, bmp180_cal_coeff_t *calCoeff){
-	uint16_t UT = readUncompensatedTemperature(bmp180);
+void printTemp(int32_t temp){
+      char outputData[50] = {'\0'};
+      uint8_t outputDataSize = 0;
+      outputDataSize = sprintf(outputData, "Temperature %d %cC \r\n", temp, ch);
+      HAL_UART_Transmit(&huart2, outputData, outputDataSize, HAL_MAX_DELAY);
+}
+/* USER CODE END 4 */
 
-	X1 = (UT - calCoeff->bmpAC6) * calCoeff->bmpAC5 / pow(2, 15);
-	X2 = (calCoeff->bmpMC * pow(2, 11)) / (X1 + calCoeff->bmpMD);
-	B5 = X1 + X2;
-
-	long temperature = ((B5 + 8) / pow(2, 4)) / 10;
-
-	return temperature;
+/**
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
+  */
+void Error_Handler(void)
+{
+  /* USER CODE BEGIN Error_Handler_Debug */
+  /* User can add his own implementation to report the HAL error return state */
+  __disable_irq();
+  while (1)
+  {
+  }
+  /* USER CODE END Error_Handler_Debug */
 }
 
-long readUncompensatedPressure(Bmp180_t *bmp180){
-	writeRegister8(bmp180, CTRL_MEAS, 0x34 + ((bmp180->mode) << 6) );
-	HAL_Delay(5);
-	long response = readRegister24(bmp180, OUT_MSB);
-
-	return response;
+#ifdef  USE_FULL_ASSERT
+/**
+  * @brief  Reports the name of the source file and the source line number
+  *         where the assert_param error has occurred.
+  * @param  file: pointer to the source file name
+  * @param  line: assert_param error line source number
+  * @retval None
+  */
+void assert_failed(uint8_t *file, uint32_t line)
+{
+  /* USER CODE BEGIN 6 */
+  /* User can add his own implementation to report the file name and line number,
+     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+  /* USER CODE END 6 */
 }
-
-long getAltitude(Bmp180_t *bmp180, bmp180_cal_coeff_t *calCoeff){
-
-	UP = readUncompensatedPressure(bmp180);
-	B6 = B5 - 4000;
-	X1 = (calCoeff->bmpB2 * ((pow(B6, 2) / pow(2, 12)) )) / pow(2, 11);
-	X2 = (calCoeff->bmpAC2 * B6) / pow(2, 11);
-	X3 = X1 + X2;
-	B3 = (((calCoeff->bmpAC1*4 + X3) << (uint8_t)(bmp180->mode)) + 2)/4;
-	X1 =(calCoeff->bmpAC3 * B6) / pow(2, 13);
-	X2 = (calCoeff->bmpB1 * ( pow(B6, 2) / pow(2, 12) )) / pow(2, 16);
-	X3 = ((X1 + X2) + 2)/pow(2, 2);
-	B4 = (calCoeff->bmpAC4) * (unsigned long)(X3 + 32768) / pow(2, 15);
-	B7 = ((unsigned long)UP - B3) * (50000 >> (uint8_t)(bmp180->mode));
-
-	if (B7 < 0x80000000){
-		p = ((unsigned long)B7 * 2)/B4;
-	}else{
-		p = (B7/B4) * 2;
-	}
-	X1 = (p / pow(2, 8)) * (p/ pow(2, 8));
-	X1 = (X1*3038)/pow(2, 16);
-	X2 = (-7357*p)/pow(2, 16);
-	p = ( p + (X1 + X2 + 3791)/(pow(2, 4)) ) / 100;
-
-	altitude = 44330 * (1 - pow(p/STD_PRESSURE, 0.190294957) );
-	return altitude;
-}
-
-
+#endif /* USE_FULL_ASSERT */
