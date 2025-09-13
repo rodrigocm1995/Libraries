@@ -192,19 +192,20 @@ void bme680Init(Bme680_t *bme680, I2C_HandleTypeDef *i2c, uint8_t devAddress);
 
 void bme680CustomInit(Bme680_t *bme680, I2C_HandleTypeDef *i2c, uint8_t devAddress, IIRFilter_t coeff);
 
-void bme680readCalCoeff(Bme680_t *bme680, bme680_cal_coeff_t *calCoeff);
+void bme680Coeff(Bme680_t *bme680);
 
 uint8_t bme680GetId (Bme680_t *bme680);
 
 uint16_t readUncompensatedTemperature(Bme680_t *bme680);
 
-double bme680GetTemperature(Bme680_t *bme680, bme680_cal_coeff_t *calCoeff);
+double bme680GetTemperature(Bme680_t *bme680);
 
-double bme680GetPressure(Bme680_t *bme680, bme680_cal_coeff_t *calCoeff);
+double bme680GetPressure(Bme680_t *bme680);
 
 double bme680GetAltitude(Bme680_t *bme680);
 
-double bme680GetHumidity(Bme680_t *bme680, bme680_cal_coeff_t *calCoeff);
+double bme680GetHumidity(Bme680_t *bme680);
+
+
 
 #endif
-
