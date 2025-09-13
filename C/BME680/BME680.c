@@ -4,9 +4,10 @@
 
 #define maxRegAddress 0xEF
 #define P0 1013.25L
-#define COEFFLENGTH	  13
+#define COEFFLENGTH	  21
 #define MSB(u16) (((u16) & 0xFF00U) >> 8)
 #define LSB(u16) ((u16) & 0xFFU)
+static uint16_t coeffArr[COEFFLENGTH];
 
 const uint8_t BME680RegSize[maxRegAddress+1] = {
   0,0,0,0,0,0,0,0, //00h - 07h
@@ -142,86 +143,74 @@ void bme680CustomInit(Bme680_t *bme680, I2C_HandleTypeDef *i2c, uint8_t devAddre
   bme680->devAddress = devAddress;
 }
 
-
-void bme680readCalCoeff(Bme680_t *bme680, bme680_cal_coeff_t *calCoeff)
+void bme680Coeff(Bme680_t *bme680)
 {
-	int32_t value = 0;
+	uint32_t value = 0;
 	value = bme680ReadRegister(bme680, PAR_T1);
-	value = (LSB(value) << 8) | MSB(value);
-	calCoeff->parT1 = (int16_t)value;
+	coeffArr[0] = (LSB(value) << 8) | MSB(value);
 
 	value = bme680ReadRegister(bme680, PAR_T2);
-	value = (LSB(value) << 8) | MSB(value);
-	calCoeff->parT2 = (int16_t)value;
+	coeffArr[1] = (LSB(value) << 8) | MSB(value);
 
 	value = bme680ReadRegister(bme680, PAR_T3);
-	calCoeff->parT3 = (int8_t)value;
+	coeffArr[2] = (uint8_t)value;
 
 	value = bme680ReadRegister(bme680, TEMP_ADC) >> 4;
-	calCoeff->tempAdc = value;
+	coeffArr[3] = value;
 
 	value = bme680ReadRegister(bme680, PAR_P1);
-	value = (LSB(value) << 8) | MSB(value);
-    calCoeff->parP1 = (uint16_t)value;
+	coeffArr[4] = (LSB(value) << 8) | MSB(value);
 
     value = bme680ReadRegister(bme680, PAR_P2);
-    value = (LSB(value) << 8) | MSB(value);
-    calCoeff->parP2 = (uint16_t)value;
+    coeffArr[5] = (LSB(value) << 8) | MSB(value);
 
     value = bme680ReadRegister(bme680, PAR_P3);
-    calCoeff->parP3 = (int8_t)value;
+    coeffArr[6] = (uint8_t)value;
 
     value = bme680ReadRegister(bme680, PAR_P4);
-    value = (LSB(value) << 8) | MSB(value);
-    calCoeff->parP4 = (uint16_t)value;
+    coeffArr[7] = (LSB(value) << 8) | MSB(value);
 
     value = bme680ReadRegister(bme680, PAR_P5);
-    value = (LSB(value) << 8) | MSB(value);
-    calCoeff->parP5 = (uint16_t)value;
+    coeffArr[8] = (LSB(value) << 8) | MSB(value);
 
     value = bme680ReadRegister(bme680, PAR_P6);
-    calCoeff->parP6 = (int8_t)value;
+    coeffArr[9] = (uint8_t)value;
 
     value = bme680ReadRegister(bme680, PAR_P7);
-    calCoeff->parP7 = (int8_t)value;
+    coeffArr[10] = (uint8_t)value;
 
     value = bme680ReadRegister(bme680, PAR_P8);
-    value = (LSB(value) << 8) | MSB(value);
-    calCoeff->parP8 = (uint16_t)value;
+    coeffArr[11] = (LSB(value) << 8) | MSB(value);
 
     value = bme680ReadRegister(bme680, PAR_P9);
-    value = (LSB(value) << 8) | MSB(value);
-    calCoeff->parP9 = (uint16_t)value;
+    coeffArr[12] = (LSB(value) << 8) | MSB(value);
 
     value = bme680ReadRegister(bme680, PAR_P10);
-    calCoeff->parP10 = (int8_t)value;
+    coeffArr[13] = (uint8_t)value;
 
     value = bme680ReadRegister(bme680, PAR_H1);
     value = (LSB(value) << 8) | MSB(value);
-    value = (MSB(value) << 4) | (LSB(value) & (0x0F));
-    //value = value >> 4;
-    calCoeff->parH1 = (uint16_t)value;
+    coeffArr[14] = (MSB(value) << 4) | (LSB(value) & (0x0F));
 
     value = bme680ReadRegister(bme680, PAR_H2);
-    value = (MSB(value) << 8)| (LSB(value) & (0xF0));
-    value = value >> 4;
-    calCoeff->parH2 = (uint16_t)value;
+    coeffArr[15] = ((MSB(value) << 8)| (LSB(value) & (0xF0))) >> 4;
 
     value = bme680ReadRegister(bme680, PAR_H3);
-    calCoeff->parH3 = (int8_t)value;
+    coeffArr[16] = (uint8_t)value;
 
     value = bme680ReadRegister(bme680, PAR_H4);
-    calCoeff->parH4 = (int8_t)value;
+    coeffArr[17] = (uint8_t)value;
 
     value = bme680ReadRegister(bme680, PAR_H5);
-    calCoeff->parH5 = (int8_t)value;
+    coeffArr[18] = (uint8_t)value;
 
     value = bme680ReadRegister(bme680, PAR_H6);
-    calCoeff->parH6 = (int8_t)value;
+    coeffArr[19] = (uint8_t)value;
 
     value = bme680ReadRegister(bme680, PAR_H7);
-    calCoeff->parH7 = (int8_t)value;
+    coeffArr[20] = (uint8_t)value;
 }
+
 
 /**
   * @brief  Read the device ID, this reading assures the correct communication with the device
@@ -241,11 +230,11 @@ void bme680EnableForcedMode(Bme680_t *bme680)
 }
 
 
-double bme680GetTemperature(Bme680_t *bme680, bme680_cal_coeff_t *calCoeff){
+double bme680GetTemperature(Bme680_t *bme680){
 	int32_t tempAdc = 0;
 	tempAdc = bme680ReadRegister(bme680, TEMP_ADC) >> 4;
-	double var1 = (((double)tempAdc / 16384.0) - ((double)(calCoeff->parT1) / 1024.0)) * (double)(calCoeff->parT2);
-	double var2 = ((((double)tempAdc / 131072.0) - ((double)(calCoeff->parT1) / 8192.0)) * (((double)tempAdc / 131072.0) - ((double)(calCoeff->parT1) / 8192.0))) * ((double)(calCoeff->parT3) * 16.0);
+	double var1 = (((double)tempAdc / 16384.0) - ((double)(coeffArr[0]) / 1024.0)) * (double)(coeffArr[1]);
+	double var2 = ((((double)tempAdc / 131072.0) - ((double)(coeffArr[0]) / 8192.0)) * (((double)tempAdc / 131072.0) - ((double)(coeffArr[0]) / 8192.0))) * ((double)(coeffArr[2]) * 16.0);
 	tempFine = var1 + var2;
 	temp_comp = tempFine / 5120.0;
 
@@ -253,22 +242,22 @@ double bme680GetTemperature(Bme680_t *bme680, bme680_cal_coeff_t *calCoeff){
 	return temp_comp;
 }
 
-double bme680GetPressure(Bme680_t *bme680, bme680_cal_coeff_t *calCoeff)
+double bme680GetPressure(Bme680_t *bme680)
 {
 	int32_t pressAdc = 0;
 	pressAdc = bme680ReadRegister(bme680, PRESS_ADC) >> 4;
 	double var1 = ((double)tempFine / 2.0) - 64000.0;
-	double var2 = var1 * var1 * ((double)(calCoeff->parP6) / 131072.0 );
-	var2 = var2 + (var1 * (double)(calCoeff->parP5) * 2.0 );
-	var2 = (var2 / 4.0) + ((double)(calCoeff->parP4) * 65536.0);
-	var1 = ((((double)(calCoeff->parP3) * var1 * var1) / 16384.0) + ((double)(calCoeff->parP2) * var1)) / 524288.0;
-	var1 = (1.0  + (var1 / 32768.0)) * (double)(calCoeff->parP1);
+	double var2 = var1 * var1 * ((double)(coeffArr[9]) / 131072.0 );
+	var2 = var2 + (var1 * (double)(coeffArr[8]) * 2.0 );
+	var2 = (var2 / 4.0) + ((double)(coeffArr[7]) * 65536.0);
+	var1 = ((((double)(coeffArr[6]) * var1 * var1) / 16384.0) + ((double)(coeffArr[5]) * var1)) / 524288.0;
+	var1 = (1.0  + (var1 / 32768.0)) * (double)(coeffArr[4]);
 	pressComp = 1048576.0 - (double)(pressAdc);
 	pressComp = (( pressComp - (var2 / 4096.0)) * 6250.0) / var1;
-	var1 = ((double)(calCoeff->parP9) * pressComp * pressComp) / 2147483648.0;
-	var2 = pressComp * ((double)(calCoeff->parP8) / 32768.0 );
-	double var3 = (pressComp / 256.0) * (pressComp / 256.0) * (pressComp / 256.0) * ((calCoeff->parP10) / 131072.0);
-	pressComp = pressComp + (var1 + var2 + var3 + ((double)(calCoeff->parP7) * 128.0)) / 16.0;
+	var1 = ((double)(coeffArr[12]) * pow(pressComp, 2.0)) / 2147483648.0;
+	var2 = pressComp * ((double)(coeffArr[11]) / 32768.0 );
+	double var3 = pow((pressComp / 256.0), 3.0) * ((coeffArr[13]) / 131072.0);
+	pressComp = pressComp + (var1 + var2 + var3 + ((double)(coeffArr[10]) * 128.0)) / 16.0;
 
 	return pressComp / 100.0;
 }
@@ -278,15 +267,17 @@ double bme680GetAltitude(Bme680_t *bme680)
 	return 44330 * (1 - pow((pressComp/100)/P0,0.190294957) );
 }
 
-double bme680GetHumidity(Bme680_t *bme680, bme680_cal_coeff_t *calCoeff)
+double bme680GetHumidity(Bme680_t *bme680)
 {
 	uint16_t humAdc = 0;
     humAdc = bme680ReadRegister(bme680, HUM_ADC);
-	double var1 = humAdc - (((double)(calCoeff->parH1) *16.0  ) + (((double)(calCoeff->parH3) / 2.0 ) * temp_comp));
-	double var2 = var1 * (((double)(calCoeff->parH2) / 262144.0 ) * (1.0 + (((double)(calCoeff->parH4) / 16384.0 ) * temp_comp) + (((double)(calCoeff->parH5) / 1048576.0) * temp_comp * temp_comp)));
-	double var3 = (double)(calCoeff->parH6) / 16384.0;
-	double var4 = (double)(calCoeff->parH7) / 2097152.0;
-	hum_comp = var2 + ((var3 + (var4 * temp_comp)) * var2 * var2);
+	double var1 = humAdc - (((double)(coeffArr[14]) *16.0  ) + (((double)(coeffArr[16]) / 2.0 ) * temp_comp));
+	double var2 = var1 * (((double)(coeffArr[15]) / 262144.0 ) * (1.0 + (((double)(coeffArr[17]) / 16384.0 ) * temp_comp) + (((double)(coeffArr[18]) / 1048576.0) * pow(temp_comp, 2.0))));
+	double var3 = (double)(coeffArr[19]) / 16384.0;
+	double var4 = (double)(coeffArr[20]) / 2097152.0;
+	hum_comp = var2 + ((var3 + (var4 * temp_comp)) * pow(var2, 2.0));
 
 	return  hum_comp;
 }
+
+
