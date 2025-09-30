@@ -9,7 +9,7 @@
 #define HUM_COEFF_SIZE							8
 #define P0 1013.25L
 
-static int32_t temp = 0;
+//static int32_t temp = 0;
 static uint64_t globalValues = 0;
 static uint32_t tempAdc;
 static uint32_t pressAdc;
@@ -387,11 +387,11 @@ void bme280GetCalCoeff(Bme280_t *bme280)
 	}
 
 	humCoeffArr[0] = bme280ReadRegister(bme280, BME280_CAL_COEFF_H1);
-	bme280->digH1 = humCoeffArr[0];
+	bme280->digH1 = (uint8_t)humCoeffArr[0];
 	bme280->digH2 = (humCoeffArr[2] << 8) | humCoeffArr[1];
-	bme280->digH3 = humCoeffArr[3];
-	bme280->digH4 = (humCoeffArr[4] << 8) | (humCoeffArr[5] & 0x0F);
-	bme280->digH5 = (humCoeffArr[6] << 8) | (humCoeffArr[5] & 0x0F);
+	bme280->digH3 = (uint8_t)humCoeffArr[3];
+	bme280->digH4 = (humCoeffArr[4] << 4) | (humCoeffArr[5] & 0x0F);
+	bme280->digH5 = (humCoeffArr[6] << 4) | (humCoeffArr[5] & 0xF0);
 	bme280->digH6 = humCoeffArr[7];
 
 }
@@ -448,8 +448,9 @@ double bme280GetTemperature(Bme280_t *bme280)
 	bme280SetMode(bme280, BME280_NORMAL_MODE);
 	globalValues = bme280GetOutput(bme280);
 
-	tempAdc = (globalValues & BME2280_TEMP_ADC_MASK) >> 20;
+	tempAdc  = (globalValues & BME2280_TEMP_ADC_MASK) >> 20;
 	pressAdc = (globalValues & BME2280_PRES_ADC_MASK) >> 44;
+	humAdc   = (globalValues & BME2280_HUM_ADC_MASK) >> 0;
 
 	var1 = (double)((tempAdc / 8.0) - ((double)(bme280->digT1) * 2));
 	var1 = (var1 * ((double)(bme280->digT2))) / 2048.0;
@@ -489,9 +490,32 @@ double bme280GetPressure(Bme280_t *bme280)
 	  return P;
 }
 
+double bme280GetHumidity(Bme280_t *bme280)
+{
+	double var1, var2, var3, var4, var5, H;
+
+	var1 = tFine - (76800.0);
+	var2 = (double)(humAdc * 16384.0);
+	var3 = (double)(((double)(bme280->digH4)) * 1048576.0);
+	var4 = ((double)(bme280->digH5)) * var1;
+	var5 = (((var2 - var3) - var4) + 16384.0) / 32768.0;
+	var2 = (var1 * ((double)(bme280->digH6))) / 1024.0;
+	var3 = (var1 * ((double)(bme280->digH3))) / 2048.0;
+	var4 = ((var2 * (var3 + 32768.0)) / 1024.0) + 2097152.0;
+	var2 = ((var4 * ((double)(bme280->digH2))) + 8192.0) / 16384.0;
+	var3 = var5 * var2;
+	var4 = ((var3 / 32768.0) * (var3 / 32768.0)) / 128.0;
+	var5 = var3 - ((var4 * ((double)(bme280->digH1))) / 16.0);
+	var5 = (var5 < 0 ? 0 : var5);
+	var5 = (var5 > 419430400.0 ? 419430400.0 : var5);
+	H = (double)(var5 / 4096.0);
+
+	  return (double)H / 1024.0;
+
+}
+
 
 double bme280GetAltitude(Bme280_t *bme280)
 {
 	return (44330.0 * (1.0 - pow(P/P0, 0.190294957) ));
 }
-
