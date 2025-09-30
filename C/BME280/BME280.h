@@ -141,9 +141,9 @@ typedef struct
 	int16_t			 				digP7;
 	int16_t			 				digP8;
 	int16_t			 				digP9;
-	int8_t			 				digH1;
-	int16_t			 				digH2;
-	int8_t			 				digH3;
+	uint8_t			 				digH1;
+	int16_t				 			digH2;
+	uint8_t			 				digH3;
 	int16_t			 				digH4;
 	int16_t			 				digH5;
 	int16_t			 				digH6;
@@ -197,6 +197,8 @@ double		bme280GetTemperature(Bme280_t *bme280);
 
 double 		bme280GetPressure(Bme280_t *bme280);
 
+double 		bme280GetHumidity(Bme280_t *bme280);
+
 double		bme280GetAltitude(Bme280_t *bme280);
 
 _Bool 		bme280CheckDataReady(Bme280_t *bme280);
@@ -204,4 +206,3 @@ _Bool 		bme280CheckDataReady(Bme280_t *bme280);
 void 		bme280ResetDevice(Bme280_t *bme280);
 
 #endif
-
