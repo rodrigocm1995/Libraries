@@ -58,7 +58,7 @@ N = Not acknowledge
 */
 
 #ifndef INC_VCNL36687S_H_
-#define INC_VCNL36687S_H
+#define INC_VCNL36687S_H_
 
 #define VCNL36687S_ADDRESS                0x60 // Single slave address
 #define VCNL36687S_TRIALS                 5
