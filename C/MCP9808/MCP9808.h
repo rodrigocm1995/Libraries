@@ -61,6 +61,9 @@
 #define MCP9808_SHDN_MASK                       0xFEFF
 #define MCP9808_CRIT_LOCK_MASK                  0xFF7F
 #define MCP9808_WIN_LOCK_MASK                   0xFFBF
+#define MCP9808_INT_CLEAR_MASK					0xFFDF
+#define MCP9808_ALERT_CTRL_MASK					0xFFF7
+#define MCP9808_ALERT_POLARITY_MASK				0xFFFD
 
 typedef enum
 {
@@ -93,10 +96,15 @@ typedef enum
 // Interrupt Clear bit
 typedef enum
 {
-  ACTIVE_HIGH_POLARITY                         = 0x0008,
-  ACTIVE_LOW_POLARITY                          = 0x0000,
-} Mcp9808_int_clear;
+  MCP9808_CLEAR_INT_NO_EFFECT                   = 0x0000,
+  MCP9808_CLEAR_INT_OUTPUT                      = 0x0020,
+} MCP9808_IntClear_t;
 
+typedef enum
+{
+  MCP9808_ALERT_CTRL_DISABLED                  = 0x0000,
+  MCP9808_ALERT_CTRL_ENABLED                   = 0x0008,
+} MCP9808_AlertCtrl_t;
 
 typedef enum
 {
@@ -106,6 +114,18 @@ typedef enum
 	MCP9808_0_0625C_RES							= 0x03,
 }MCP9808_Resolution_t;
 
+
+typedef enum
+{
+	MCP9808_ALERT_ACTIVE_LOW					= 0x0002,
+	MCP9808_ALERT_ACTIVE_HIGH					= 0x0000,
+}MCP9808_AlertPolarity_t;
+typedef enum
+{
+	MCP9808_MEMADD_SIZE_8BIT					= 0x01U,
+	MCP9808_MEMADD_SIZE_16BIT					= 0x02U,
+}MCP9808_AddressSize_t;
+
 typedef struct
 {
   I2C_HandleTypeDef *hi2c;
@@ -113,32 +133,49 @@ typedef struct
 }MCP9808_HandleTypeDef;
 
 
-void MCP9808_WriteRegister(MCP9808_HandleTypeDef *mcp9808, uint8_t registerAddress, uint16_t value);
 
-void MCP9808_WriteRegister8(MCP9808_HandleTypeDef *mcp9808, uint8_t registerAddress, uint8_t value);
+HAL_StatusTypeDef MCP9808_WriteRegister(MCP9808_HandleTypeDef *mcp9808, uint8_t registerAddress, uint16_t value, MCP9808_AddressSize_t size);
 
 uint16_t MCP9808_ReadRegister(MCP9808_HandleTypeDef *mcp9808, uint8_t registerAddress);
-
-uint8_t MCP9808_ReadRegister8(MCP9808_HandleTypeDef *mcp9808, uint8_t registerAddress);
 
 void MCP9808_Init(MCP9808_HandleTypeDef *mcp9808, I2C_HandleTypeDef *i2c);
 
 uint16_t MCP9808_GetConfig(MCP9808_HandleTypeDef *mcp9808);
 
-void MCP9808_SetHysteresis(MCP9808_HandleTypeDef *mcp9808, MCP9808_Hysteresis_t hyst);
 
-uint16_t MCP9808_GetDeviceId(MCP9808_HandleTypeDef *mcp9808);
+/**
+    *******************************************************************************************
+	Setting bits of CONFIGURATION REGISTER
+    *******************************************************************************************
+  */
+void MCP9808_SetHysteresis(MCP9808_HandleTypeDef *mcp9808, MCP9808_Hysteresis_t hyst);
 
 void MCP9808_SetPower(MCP9808_HandleTypeDef *mcp9808, Mcp9808_shutdown power);
 
-void MCP9808_SetLock(MCP9808_HandleTypeDef *mcp9808, Mcp9808_crit_lock lock);
+void MCP9808_SetCriticalLock(MCP9808_HandleTypeDef *mcp9808, Mcp9808_crit_lock lock);
 
 void MCP9808_SetWinLock(MCP9808_HandleTypeDef *mcp9808, Mcp9808_window_lock windowLock);
+
+void MCP9808_SetIntClear(MCP9808_HandleTypeDef *mcp9808, MCP9808_IntClear_t intClear);
+
+void MCP9808_SetAlertControl(MCP9808_HandleTypeDef *mcp9808, MCP9808_AlertCtrl_t alertCtrl);
+
+void MCP9808_SetAlertPolarity(MCP9808_HandleTypeDef *mcp9808, MCP9808_AlertPolarity_t alertPolarity);
+
+/**
+    *******************************************************************************************
+	Getting bits of CONFIGURATION REGISTER
+    *******************************************************************************************
+  */
 
 double MCP9808_GetTemperature(MCP9808_HandleTypeDef *mcp980);
 
 uint8_t MCP9808_GetResolution(MCP9808_HandleTypeDef *mcp9808);
 
 void MCP9808_SetResolution(MCP9808_HandleTypeDef *mcp9808, MCP9808_Resolution_t resolution);
+
+uint16_t MCP9808_GetDeviceId(MCP9808_HandleTypeDef *mcp9808);
+
+uint16_t MCP9808_GetManufacturerId(MCP9808_HandleTypeDef *mcp9808);
 
 #endif
