@@ -170,6 +170,12 @@ uint16_t OPT3001_GetResult(OPT3001_HandleTypeDef *opt3001);
 uint16_t OPT3001_GetConfiguration(OPT3001_HandleTypeDef *opt3001);
 
 uint16_t OPT3001_GetLowLimit(OPT3001_HandleTypeDef *opt3001);
+
+uint16_t OPT3001_GetHighLimit(OPT3001_HandleTypeDef *opt3001);
+
+uint16_t OPT3001_GetManufacturerId(OPT3001_HandleTypeDef *opt3001);
+
+uint16_t OPT3001_GetDeviceId(OPT3001_HandleTypeDef *opt3001);
 /*
 ===========================================================================================================================
 End of Getting register values
