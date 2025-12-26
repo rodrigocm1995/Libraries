@@ -73,6 +73,7 @@
 #define TMP117_ALERT_PIN_SELECT_MASK			0xFFFB
 #define TMP117_SOFT_RESET_MASK					0xFFFD
 #define TMP117_CONV_CYCLE_MASK					0xFC7F
+#define TMP117_LOCK_UNLOCK_EEPROM_MASK			0x7FFF
 
 typedef enum
 {
@@ -120,6 +121,12 @@ typedef enum
 }TMP117_AlertPinSelect_HandleTypeDef;
 
 
+typedef enum
+{
+	TMP117_LOCK_EEPROM							= 0x0000,
+	TMP117_UNLOCK_EEPROM						= 0x8000,
+}TMP117_LockUnlock_HandleTypeDef;
+
 typedef struct
 {
   I2C_HandleTypeDef         *hi2c;
@@ -141,6 +148,14 @@ uint16_t TMP117_GetTempHighLimit(TMP117_HandleTypeDef *tmp117);
 uint16_t TMP117_GetTempLowLimit(TMP117_HandleTypeDef *tmp117);
 
 uint16_t TMP117_GetDeviceId(TMP117_HandleTypeDef *tmp117);
+
+uint16_t TMP117_GetEepromUnlock(TMP117_HandleTypeDef *tmp117);
+
+uint16_t TMP117_GetEeprom1(TMP117_HandleTypeDef *tmp117);
+
+uint16_t TMP117_GetEeprom2(TMP117_HandleTypeDef *tmp117);
+
+uint16_t TMP117_GetEeprom3(TMP117_HandleTypeDef *tmp117);
 
 
 _Bool TMP117_HighAlertFlag(TMP117_HandleTypeDef *tmp117);
@@ -172,10 +187,23 @@ void TMP117_SetHighLimitTemp(TMP117_HandleTypeDef *tmp117, uint8_t highLimit);
 void TMP117_SetLowLimitTemp(TMP117_HandleTypeDef *tmp117, uint8_t lowLimit);
 
 
+double TMP117_GetHighLimitTemp(TMP117_HandleTypeDef *tmp117);
+
+double TMP117_GetLowLimitTemp(TMP117_HandleTypeDef *tmp117);
+
+
 double TMP117_CheckTemperature(uint16_t value);
 
 double TMP117_GetTemperatureCelsius(TMP117_HandleTypeDef *tmp117);
 
+
+void TMP117_SetLockUnlockEeprom(TMP117_HandleTypeDef *tmp117, TMP117_LockUnlock_HandleTypeDef lockUnlock);
+
+HAL_StatusTypeDef TMP117_SetEeprom1(TMP117_HandleTypeDef *tmp117, uint16_t data);
+
+HAL_StatusTypeDef TMP117_SetEeprom2(TMP117_HandleTypeDef *tmp117, uint16_t data);
+
+HAL_StatusTypeDef TMP117_SetEeprom3(TMP117_HandleTypeDef *tmp117, uint16_t data);
 
 void TMP117_Init(TMP117_HandleTypeDef *tmp117, I2C_HandleTypeDef *hi2c);
 
