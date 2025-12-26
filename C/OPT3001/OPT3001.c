@@ -122,7 +122,7 @@ uint16_t OPT3001_GetHighLimit(OPT3001_HandleTypeDef *opt3001)
 }
 
 /**
-  *@brief Get the manufactuer ID. This register is intended to help uniquely identify
+  *@brief Get the manufacturer ID. This register is intended to help uniquely identify
   *			the device.
   *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
   *			the configuration information for connecting to the sensor.
@@ -187,7 +187,7 @@ void OPT3001_SetRangeNumber(OPT3001_HandleTypeDef *opt3001, OPT3001_RangeNumber_
   * 		for a lower noise measurement.
   *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
   *			the configuration information for connecting to the sensor.
-  *@param range:
+  *@param convTime:
   *(+) OPT3001_CT_100_MS
   *(+) OPT3001_CT_800_MS  
   *@retval	none
@@ -209,7 +209,7 @@ void OPT3001_SetConversionTime(OPT3001_HandleTypeDef *opt3001, OPT3001_Conversio
   *			the device.
   *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
   *			the configuration information for connecting to the sensor.
-  *@param range:
+  *@param mode:
   *(+) OPT3001_SHUTDOWN
   *(+) OPT3001_SINGLE_SHOT
   *(+) OPT3001_CONTINUOUS_CONVERSION
@@ -296,7 +296,7 @@ _Bool OPT3001_LowLimitFlag(OPT3001_HandleTypeDef *opt3001)
   *			the device.
   *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
   *			the configuration information for connecting to the sensor.
-  *@param range:
+  *@param latch:
   *(+) OPT3001_HYSTERESIS_STYLE
   *(+) OPT3001_WINDOW_STYLE  
   *@retval	none
@@ -313,7 +313,7 @@ void OPT3001_SetLatchStyle(OPT3001_HandleTypeDef *opt3001, OPT3001_LatchStyle_Ha
   *			The polarity field controls the polarity or active state of the INT pin.
   *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
   *			the configuration information for connecting to the sensor.
-  *@param range:
+  *@param pol:
   *(+) OPT3001_INT_ACTIVE_LOW
   *(+) OPT3001_INT_ACTIVE_HIGH  
   *@retval	none
@@ -334,11 +334,13 @@ void OPT3001_SetExponentFIeld(OPT3001_HandleTypeDef *opt3001, OPT3001_MaskExp_Ha
 
 
 /**
-  *@brief Allows the user to set the INT polarity inside the CONFIGURATION register.
-  *			The polarity field controls the polarity or active state of the INT pin.
+  *@brief Allows the user to set the Fault Count inside the CONFIGURATION register.
+  *			The fault count field instructs the device as to how many consecutive fault events are
+  *			required to trigger the interrupt reporting mechanisms: the INT pin, the flag high field
+  *			(FH), and flag low field (FL).
   *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
   *			the configuration information for connecting to the sensor.
-  *@param range:
+  *@param faultCount:
   *(+) OPT3001_ONE_FAULT_COUNT
   *(+) OPT3001_TWO_FAULT_COUNTS  
   *(+) OPT3001_FOUR_FAULT_COUNTS
