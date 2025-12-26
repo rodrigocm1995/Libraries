@@ -72,7 +72,7 @@ int16_t TMP117_GetTemperature(TMP117_HandleTypeDef *tmp117)
 
 /**
   *@brief Get the current value of the CONFIGURATION register.
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
   *			the configuration information for connecting to the sensor.
   *@retval	unsigned integer 16-bit data
 */
@@ -82,24 +82,97 @@ uint16_t TMP117_GetConfiguration(TMP117_HandleTypeDef *tmp117)
 	return data;
 }
 
+/**
+  *@brief Get the current value of the HIGH LIMIT register.
+  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@retval	unsigned integer 16-bit data
+*/
 uint16_t TMP117_GetTempHighLimit(TMP117_HandleTypeDef *tmp117)
 {
 	uint16_t data = TMP117_ReadRegister(tmp117, TMP117_TEMP_HIGH_LIMIT_REG);
 	return data;
 }
 
+/**
+  *@brief Get the current value of the LOW LIMIT register.
+  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@retval	unsigned integer 16-bit data
+*/
 uint16_t TMP117_GetTempLowLimit(TMP117_HandleTypeDef *tmp117)
 {
 	uint16_t data = TMP117_ReadRegister(tmp117, TMP117_TEMP_LOW_LIMIT_REG);
 	return data;
 }
 
+/**
+  *@brief Get the manufacturer ID. This register is intended to help uniquely identify
+  *			the device.
+  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@retval	unsigned integer 16-bit data
+*/
 uint16_t TMP117_GetDeviceId(TMP117_HandleTypeDef *tmp117)
 {
 	uint16_t data = TMP117_ReadRegister(tmp117, TMP117_DEVICE_ID_REG);
 	return data;
 }
 
+uint16_t TMP117_GetEepromUnlock(TMP117_HandleTypeDef *tmp117)
+{
+	uint16_t data = TMP117_ReadRegister(tmp117, TMP117_EEPROM_UNLOCK_REG);
+	return data;
+}
+
+/**
+  *@brief Get the current value of the EEPROM1 register.
+  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@retval	unsigned integer 16-bit data
+*/
+uint16_t TMP117_GetEeprom1(TMP117_HandleTypeDef *tmp117)
+{
+	uint16_t data = TMP117_ReadRegister(tmp117, TMP117_EEPROM1_REG);
+	return data;
+}
+
+/**
+  *@brief Get the current value of the EEPROM2 register.
+  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@retval	unsigned integer 16-bit data
+*/
+uint16_t TMP117_GetEeprom2(TMP117_HandleTypeDef *tmp117)
+{
+	uint16_t data = TMP117_ReadRegister(tmp117, TMP117_EEPROM2_REG);
+	return data;
+}
+
+/**
+  *@brief Get the current value of the EEPROM3 register.
+  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@retval	unsigned integer 16-bit data
+*/
+uint16_t TMP117_GetEeprom3(TMP117_HandleTypeDef *tmp117)
+{
+	uint16_t data = TMP117_ReadRegister(tmp117, TMP117_EEPROM3_REG);
+	return data;
+}
+
+/**
+  *@brief Read the HIGH_Alert bit of the CONFIGURATION register
+  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@retval	Boolean data
+  *High Alert Flag:
+  *(+) 1: Set when the conversion result is higher than the high limit
+  *(+) 0: Cleared on read of configuration register
+  *Therm mode:
+  *(+) 1: Set when the conversion result is higher than the therm limit
+  *(+) 0: Cleared when the conversion result is lower than the hysteresis
+*/
 _Bool TMP117_HighAlertFlag(TMP117_HandleTypeDef *tmp117)
 {
 	value = TMP117_GetConfiguration(tmp117);
@@ -107,6 +180,16 @@ _Bool TMP117_HighAlertFlag(TMP117_HandleTypeDef *tmp117)
 	return valueFlag;
 }
 
+/**
+  *@brief Read the LOW_Alert bit of the CONFIGURATION register
+  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@retval	Boolean data
+  *Low Alert Flag:
+  *(+) 1: Set when the conversion result is lower than the low limit
+  *(+) 0: Cleared when the configuration register is read
+  *Therm mode: Always set to 0
+*/
 _Bool TMP117_LowAlertFlag(TMP117_HandleTypeDef *tmp117)
 {
 	value = TMP117_GetConfiguration(tmp117);
@@ -114,6 +197,17 @@ _Bool TMP117_LowAlertFlag(TMP117_HandleTypeDef *tmp117)
 	return valueFlag;
 }
 
+/**
+  *@brief Read the Data_Ready bit of the CONFIGURATION register.
+  *This flag indicates that the conversion is complete and the temperature register
+  *can be read. Every time the temperature register or configuration register is read,
+  *this bit is cleared. This bit is set at the end of the conversion when the temperature
+  *register is updated. Data_Ready can be monitored on the ALERT pin by setting bit 2 of
+  *the CONFIGURATION register.
+  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@retval	Boolean data
+*/
 _Bool TMP117_DataReadyFlag(TMP117_HandleTypeDef *tmp117)
 {
 	value = TMP117_GetConfiguration(tmp117);
@@ -121,6 +215,13 @@ _Bool TMP117_DataReadyFlag(TMP117_HandleTypeDef *tmp117)
 	return valueFlag;
 }
 
+/**
+  *@brief Read the EEPROM_Busy bit of the CONFIGURATION register.
+  *The value of the flag indicates that the EEPROM is busy during programming or power-up.
+  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@retval	Boolean data
+*/
 _Bool TMP117_EepromBusyFlag(TMP117_HandleTypeDef *tmp117)
 {
 	value = TMP117_GetConfiguration(tmp117);
@@ -240,7 +341,7 @@ void TMP117_SetAverage(TMP117_HandleTypeDef *tmp117, TMP117_Average_HandleTypeDe
 void TMP117_SetThermAlertMode(TMP117_HandleTypeDef *tmp117, TMP117_ThermAlertMode_HandleTypeDef tnA)
 {
 	uint16_t result = TMP117_GetConfiguration(tmp117);
-	result = (result & TMP117_AVERAGE_MASK) | tnA;
+	result = (result & TMP117_THERM_ALERT_MASK) | tnA;
 	TMP117_WriteRegister(tmp117, TMP117_CONFIGURATION_REG, result);
 }
 
@@ -317,7 +418,36 @@ void TMP117_SetLowLimitTemp(TMP117_HandleTypeDef *tmp117, uint8_t lowLimit)
 	{
 		lLimit = ~lLimit + 1;
 	}
-	TMP117_WriteRegister(tmp117, TMP117_TEMP_HIGH_LIMIT_REG, lLimit);
+	TMP117_WriteRegister(tmp117, TMP117_TEMP_LOW_LIMIT_REG, lLimit);
+}
+
+/**
+  *@brief Get the high limit temperature value in degree celsius
+  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@retval	double temperature high limit value
+*/
+double TMP117_GetHighLimitTemp(TMP117_HandleTypeDef *tmp117)
+{
+	double temp = 0.0;
+	int16_t rawTemp = TMP117_GetTempHighLimit(tmp117);
+	temp = TMP117_CheckTemperature(rawTemp);
+	return temp;
+}
+
+
+/**
+  *@brief Get the low limit temperature value in degree celsius
+  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@retval	double temperature low limit value
+*/
+double TMP117_GetLowLimitTemp(TMP117_HandleTypeDef *tmp117)
+{
+	double temp = 0.0;
+	int16_t rawTemp = TMP117_GetTempLowLimit(tmp117);
+	temp = TMP117_CheckTemperature(rawTemp);
+	return temp;
 }
 
 /**
@@ -343,6 +473,13 @@ double TMP117_CheckTemperature(uint16_t value)
 	return (!isMsb ? temperature : -temperature);
 }
 
+
+/**
+  *@brief Get the current value of the temperature in degree celsius
+  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@retval	double temperature low limit value
+*/
 double TMP117_GetTemperatureCelsius(TMP117_HandleTypeDef *tmp117)
 {
 	  int16_t rawTemp;
@@ -351,6 +488,61 @@ double TMP117_GetTemperatureCelsius(TMP117_HandleTypeDef *tmp117)
 	  rawTemp = TMP117_GetTemperature(tmp117);
 	  temperature =  TMP117_CheckTemperature(rawTemp);
 	  return temperature;
+}
+
+/**
+  *@brief Allows the user to lock or unlock the EEPROM register
+    * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  * @param  lockUnlock
+  *(+) TMP117_LOCK_EEPROM: EEPROM is locked for programming, writes to all EEPROM addresses
+  *		(such as configuration, limits, and EEPROM locations 1-4) are written to registers
+  *		in digital logic and are not programmed in the EEPROM
+  *(+) TMP117_UNLOCK_EEPROM: EEPROM unlocked for programming, any writes to programmable
+  *		registers program the respective location in the EEPROM
+  *@retval	none
+*/
+void TMP117_SetLockUnlockEeprom(TMP117_HandleTypeDef *tmp117, TMP117_LockUnlock_HandleTypeDef lockUnlock)
+{
+	uint16_t result = TMP117_GetEepromUnlock(tmp117);
+	result = (result & TMP117_LOCK_UNLOCK_EEPROM_MASK) | lockUnlock;
+	TMP117_WriteRegister(tmp117, TMP117_EEPROM_UNLOCK_REG, result);
+}
+
+HAL_StatusTypeDef TMP117_SetEeprom1(TMP117_HandleTypeDef *tmp117, uint16_t data)
+{
+	value = TMP117_GetEepromUnlock(tmp117);
+	valueFlag = CHECK_BIT(value,15);
+	if (valueFlag)
+	{
+		TMP117_WriteRegister(tmp117, TMP117_EEPROM1_REG, data);
+		return HAL_OK;
+	}
+	return HAL_ERROR;
+}
+
+HAL_StatusTypeDef TMP117_SetEeprom2(TMP117_HandleTypeDef *tmp117, uint16_t data)
+{
+	value = TMP117_GetEepromUnlock(tmp117);
+	valueFlag = CHECK_BIT(value,15);
+	if (valueFlag)
+	{
+		TMP117_WriteRegister(tmp117, TMP117_EEPROM1_REG, data);
+		return HAL_OK;
+	}
+	return HAL_ERROR;
+}
+
+HAL_StatusTypeDef TMP117_SetEeprom3(TMP117_HandleTypeDef *tmp117, uint16_t data)
+{
+	value = TMP117_GetEepromUnlock(tmp117);
+	valueFlag = CHECK_BIT(value,15);
+	if (valueFlag)
+	{
+		TMP117_WriteRegister(tmp117, TMP117_EEPROM1_REG, data);
+		return HAL_OK;
+	}
+	return HAL_ERROR;
 }
 
 /**
@@ -369,7 +561,7 @@ void TMP117_Init(TMP117_HandleTypeDef *tmp117, I2C_HandleTypeDef *i2c)
   
   TMP117_SetMode(tmp117, TMP117_CONTINUOUS_MODE);
   TMP117_SetAverage(tmp117, TMP117_AVG_32_CONV);
-  TMP117_SetConversionCycle(tmp117, TMP117_CONVERSION_TYPE_6);
+  TMP117_SetConversionCycle(tmp117, TMP117_CONVERSION_TYPE_7);
   TMP117_SetThermAlertMode(tmp117, TMP117_ALERT_MODE);
   TMP117_SetAlertPinPolarity(tmp117, TMP117_ALERT_ACTIVE_HIGH);
   TMP117_SetAlertPinSelect(tmp117, TMP117_ALERT_FOR_DATA_READY_FLAG);
