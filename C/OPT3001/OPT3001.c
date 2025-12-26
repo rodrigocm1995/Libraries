@@ -39,8 +39,7 @@ HAL_StatusTypeDef OPT3001_WriteRegister(OPT3001_HandleTypeDef *opt3001, uint8_t 
   * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
   *                the configuration information for connecting to the sensor.
   * @param  registerAddress Target device address: The device 7 bits address value
-  * @retval dynamic data read from register's device depending on the register length.
-  * 		Min. 8-bit, Max. 16-bit
+  * @retval unsigned int 16-bit value of the register
   */
 uint16_t OPT3001_ReadRegister(OPT3001_HandleTypeDef *opt3001, uint8_t registerAddress)
 {
@@ -390,7 +389,7 @@ HAL_StatusTypeDef OPT3001_SetLowLimit(OPT3001_HandleTypeDef *opt3001, double low
   *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
   *			the configuration information for connecting to the sensor.
   *@param lowLimit
-  *@retval	unsigned integer 16-bit data
+  *@retval	HAL_Status
 */
 HAL_StatusTypeDef OPT3001_SetHighLimit(OPT3001_HandleTypeDef *opt3001, double highLimit)
 {
@@ -419,7 +418,7 @@ HAL_StatusTypeDef OPT3001_SetHighLimit(OPT3001_HandleTypeDef *opt3001, double hi
   * lux = 0.01 * (2^E[3:0]) x R[11:0]
   *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
   *			the configuration information for connecting to the sensor.
-  *@retval	unsigned integer 16-bit data
+  *@retval	double value of lux
 */
 double OPT3001_GetLux(OPT3001_HandleTypeDef *opt3001)
 {
@@ -435,6 +434,14 @@ double OPT3001_GetLux(OPT3001_HandleTypeDef *opt3001)
 	return lux;
 }
 
+/**
+  *@brief This function allows to set the exponent according to the value in lux suggested by
+  *			the user.
+  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@param limit
+  *@retval	HAL_Status
+*/
 HAL_StatusTypeDef OPT3001_GetInnerRange(OPT3001_HandleTypeDef *opt3001, double limit)
 {
 		if (limit < 40.95)
@@ -554,7 +561,7 @@ void OPT3001_Init(OPT3001_HandleTypeDef *opt3001, I2C_HandleTypeDef *i2c)
 	opt3001->hi2c = i2c;
 
 	OPT3001_SetRangeNumber(opt3001, OPT3001_AUTOMATIC_RANGE);
-	OPT3001_SetConversionTime(opt3001, OPT3001_CT_100_MS);
+	OPT3001_SetConversionTime(opt3001, OPT3001_CT_800_MS);
 	OPT3001_SetConversionMode(opt3001, OPT3001_CONTINUOUS_CONVERSION);
 	OPT3001_SetLatchStyle(opt3001, OPT3001_HYSTERESIS_STYLE);
 	OPT3001_SetIntPolarity(opt3001, OPT3001_INT_ACTIVE_LOW);
