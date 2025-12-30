@@ -6,6 +6,9 @@
 #define MSB(u16) ((u16 & 0xFF00U) >> 8)
 #define LSB(u16) ((u16 & 0x00FFU) >> 0)
 
+volatile uint16_t value;
+volatile _Bool valueFlag;
+
 const uint8_t INA228RegSize[INA228_MAX_REG_ADDRESS + 1] = {
   2,2,2,2,3,3,2,3,\
   3,5,5,2,2,2,2,2,\
@@ -277,6 +280,12 @@ uint16_t INA228_GetDeviceId(INA228_HandleTypeDef *ina228)
 	return data;
 }
 
+uint16_t INA228_GetDiagAlert(INA228_HandleTypeDef *ina228)
+{
+	uint16_t data = INA228_ReadRegister(ina228, INA228_DIAG_ALERT_REG);
+	return data;
+}
+
 
 void INA228_Reset(INA228_HandleTypeDef *ina228)
 {
@@ -305,6 +314,16 @@ void INA228_SetTempCompensation(INA228_HandleTypeDef *ina228, INA228_TempComp_Ha
 	INA228_WriteRegister(ina228, INA228_CONFIG_REG, result);
 }
 
+/**
+  *@brief Allows the user to set the shunt full scale range selection bits [4] of the CONFIG register across IN+ and IN- pins
+  *@param ina228 Pointer to a INA228_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@param mode:
+  *(+) INA228_ADCRANGE_163_84_MV
+  *(+) INA228_ADCRANGE_40_96_MV
+
+  *@retval	none
+*/
 void INA228_SetAdcRange(INA228_HandleTypeDef *ina228, INA228_AdcRange_HandleTypeDef adcRange)
 {
 	if (adcRange == INA228_ADCRANGE_163_84_MV)
@@ -322,6 +341,31 @@ void INA228_SetAdcRange(INA228_HandleTypeDef *ina228, INA228_AdcRange_HandleType
 	INA228_WriteRegister(ina228, INA228_CONFIG_REG, result);
 }
 
+/**
+  *@brief Allows the user to set the MODE bits [15:12] for continuous or triggered mode on bus voltage, shunt voltage
+  *			or temperature measurement of the ADC_CONFIG register.
+  *			The averaging setting applies to all active outputs. When > 0h, the output registers are updated
+  *			after the averaging has completed.
+  *@param ina228 Pointer to a INA228_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@param mode:
+  *(+) INA228_SHUTDOWN_MODE
+  *(+) INA228_BUS_VOLT_ONE_SHOT
+  *(+) INA228_SHUNT_VOLT_ONE_SHOT
+  *(+) INA228_SHUNT_BUS_VOLT_ONE_SHOT
+  *(+) INA228_TEMP_ONE_SHOT
+  *(+) INA228_TEMP_BUS_VOLT_ONE_SHOT
+  *(+) INA228_TEMP_SHUNT_VOLT_ONE_SHOT
+  *(+) INA228_TEMP_SHUNT_BUS_VOLT_ONE_SHOT
+  *(+) INA228_BUS_VOLT_CONTINUOUS
+  *(+) INA228_SHUNT_VOLT_CONTINUOUS
+  *(+) INA228_SHUNT_BUS_VOLT_CONTINUOUS
+  *(+) INA228_TEMP_CONTINUOUS
+  *(+) INA228_TEMP_VUS_VOLT_CONTINUOUS
+  *(+) INA228_TEMP_SHUNT_VOLT_CONTINUOUS
+  *(+) INA228_TEMP_SHUNT_BUS_VOLT_CONTINUOUS
+  *@retval	none
+*/
 void INA228_SetMode(INA228_HandleTypeDef *ina228, INA228_Mode_HandleTypeDef mode)
 {
 	uint16_t result = INA228_GetAdcConfig(ina228);
@@ -329,6 +373,23 @@ void INA228_SetMode(INA228_HandleTypeDef *ina228, INA228_Mode_HandleTypeDef mode
 	INA228_WriteRegister(ina228, INA228_ADC_CONFIG_REG, result);
 }
 
+/**
+  *@brief Allows the user to set the conversion time of the bus voltage measurement bits [11:9] of the ADC_CONFIG register.
+  *			The averaging setting applies to all active outputs. When > 0h, the output registers are updated
+  *			after the averaging has completed.
+  *@param ina228 Pointer to a INA228_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@param tempConvTime:
+  *(+) INA228_50_US
+  *(+) INA228_84_US
+  *(+) INA228_150_US
+  *(+) INA228_280_US
+  *(+) INA228_540_US
+  *(+) INA228_1052_US
+  *(+) INA228_2074_US
+  *(+) INA228_4120_US
+  *@retval	none
+*/
 void INA228_SetBusVoltageConvTime(INA228_HandleTypeDef *ina228, INA228_ConversionTime_HandleTypeDef busConvTime)
 {
 	uint16_t result = INA228_GetAdcConfig(ina228);
@@ -336,6 +397,23 @@ void INA228_SetBusVoltageConvTime(INA228_HandleTypeDef *ina228, INA228_Conversio
 	INA228_WriteRegister(ina228, INA228_ADC_CONFIG_REG, result);
 }
 
+/**
+  *@brief Allows the user to set the conversion time of the shunt voltage measurement bits [8:6] of the ADC_CONFIG register.
+  *			The averaging setting applies to all active outputs. When > 0h, the output registers are updated
+  *			after the averaging has completed.
+  *@param ina228 Pointer to a INA228_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@param tempConvTime:
+  *(+) INA228_50_US
+  *(+) INA228_84_US
+  *(+) INA228_150_US
+  *(+) INA228_280_US
+  *(+) INA228_540_US
+  *(+) INA228_1052_US
+  *(+) INA228_2074_US
+  *(+) INA228_4120_US
+  *@retval	none
+*/
 void INA228_SetShuntVoltageConvTime(INA228_HandleTypeDef *ina228, INA228_ConversionTime_HandleTypeDef shuntConvTime)
 {
 	uint16_t result = INA228_GetAdcConfig(ina228);
@@ -343,6 +421,23 @@ void INA228_SetShuntVoltageConvTime(INA228_HandleTypeDef *ina228, INA228_Convers
 	INA228_WriteRegister(ina228, INA228_ADC_CONFIG_REG, result);
 }
 
+/**
+  *@brief Allows the user to set the conversion time of the temperature measurement bits [5:3] of the ADC_CONFIG register.
+  *			The averaging setting applies to all active outputs. When > 0h, the output registers are updated
+  *			after the averaging has completed.
+  *@param ina228 Pointer to a INA228_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@param tempConvTime:
+  *(+) INA228_50_US
+  *(+) INA228_84_US
+  *(+) INA228_150_US
+  *(+) INA228_280_US
+  *(+) INA228_540_US
+  *(+) INA228_1052_US
+  *(+) INA228_2074_US
+  *(+) INA228_4120_US
+  *@retval	none
+*/
 void INA228_SetTemperatureConvTime(INA228_HandleTypeDef *ina228, INA228_ConversionTime_HandleTypeDef tempConvTime)
 {
 	uint16_t result = INA228_GetAdcConfig(ina228);
@@ -350,6 +445,23 @@ void INA228_SetTemperatureConvTime(INA228_HandleTypeDef *ina228, INA228_Conversi
 	INA228_WriteRegister(ina228, INA228_ADC_CONFIG_REG, result);
 }
 
+/**
+  *@brief Allows the user to select the ADC sample averaging count bits [2:0] of the ADC_CONFIG register.
+  *			The averaging setting applies to all active outputs. When > 0h, the output registers are updated
+  *			after the averaging has completed.
+  *@param ina228 Pointer to a INA228_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@param avg:
+  *(+) INA228_1_SAMPLE
+  *(+) INA228_4_SAMPLES
+  *(+) INA228_16_SAMPLES
+  *(+) INA228_64_SAMPLES
+  *(+) INA228_128_SAMPLES
+  *(+) INA228_256_SAMPLES
+  *(+) INA228_512_SAMPLES
+  *(+) INA228_1024_SAMPLES
+  *@retval	none
+*/
 void INA228_SetAverage(INA228_HandleTypeDef *ina228, INA228_Average_HandleTypeDef avg)
 {
 	uint16_t result = INA228_GetAdcConfig(ina228);
@@ -382,7 +494,12 @@ void INA228_SetShuntCalibration(INA228_HandleTypeDef *ina228, double shuntResist
 	INA228_WriteRegister(ina228, INA228_SHUNT_CAL_REG, shuntCal);
 }
 
-
+/**
+  *@brief Read the latest calculated current output in Amperes. Two's complement value
+  *@param ina228 Pointer to a INA228_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@retval	double data type
+*/
 double INA228_ReadCurrent(INA228_HandleTypeDef *ina228)
 {
 	uint32_t rawCurrent = (INA228_GetCurrent(ina228)) >> 4;
@@ -391,6 +508,12 @@ double INA228_ReadCurrent(INA228_HandleTypeDef *ina228)
 	return current;
 }
 
+/**
+  *@brief Read the latest calculated power output in Watts. Unsigned representation. Positive value
+  *@param ina228 Pointer to a INA228_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@retval	double data type
+*/
 double INA228_ReadPower(INA228_HandleTypeDef *ina228)
 {
 	uint32_t rawPower = INA228_GetPower(ina228);
@@ -399,12 +522,84 @@ double INA228_ReadPower(INA228_HandleTypeDef *ina228)
 	return power;
 }
 
+/**
+  *@brief Read the latest calculated energy output in Joules. Unsigned representation. Positive value
+  *@param ina228 Pointer to a INA228_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@retval	double data type
+*/
 double INA228_ReadEnergy(INA228_HandleTypeDef *ina228)
 {
 	uint64_t rawEnergy = INA228_GetEnergy(ina228);
 	double energy = 16.0 * 3.2 * (ina228->currentLsb) * rawEnergy;
 
 	return energy;
+}
+
+/**
+  *@brief Read the latest calculated charge output in Coulombs. Two's complement value.
+  *@param ina228 Pointer to a INA228_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@retval	double data type
+*/
+double INA228_ReadCharge(INA228_HandleTypeDef *ina228)
+{
+	uint64_t rawCharge = INA228_GetCharge(ina228);
+	double charge = (ina228->currentLsb) * rawCharge;
+
+	return charge;
+}
+
+/**
+  *@brief Read the latest shunt voltage measured across the shunt output in volts. Two's complement value.
+  *@param ina228 Pointer to a INA228_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@retval	double data type
+*/
+double INA228_ReadShuntVoltage(INA228_HandleTypeDef *ina228)
+{
+	double shuntVoltage;
+	uint32_t rawShunt = INA228_GetShuntVoltage(ina228) >> 4;
+	(ina228->AdcRange == 0) ? (shuntVoltage = rawShunt * INA229_VSHUNT_CONV_FACTOR_ADC_0) : (shuntVoltage = rawShunt * INA229_VSHUNT_CONV_FACTOR_ADC_1);
+
+	return shuntVoltage;
+}
+
+/**
+  *@brief Read the latest bus voltage output in volts. Two's complement value. However, always positive.
+  *@param ina228 Pointer to a INA228_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@retval	double data type
+*/
+double INA228_ReadBusVoltage(INA228_HandleTypeDef *ina228)
+{
+	double busVoltage;
+	uint32_t rawBus = INA228_GetBusVoltage(ina228) >> 4;
+	busVoltage = INA229_VBUS_CONV_FACTOR * rawBus;
+
+	return busVoltage;
+}
+
+/**
+  *@brief Read the latest die temperature measurement in °C. Two's complement value
+  *@param ina228 Pointer to a INA228_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@retval	double data type
+*/
+double INA228_ReadDieTemperature(INA228_HandleTypeDef *ina228)
+{
+	double dieTemperature;
+	uint16_t rawTemp = INA228_GetDieTemperature(ina228);
+	dieTemperature = INA229_DIETEMP_CONV_FACTOR * rawTemp;
+
+	return dieTemperature;
+}
+
+_Bool INA228_ConversionReadyFlag(INA228_HandleTypeDef *ina228)
+{
+	value = INA228_GetDiagAlert(ina228);
+	valueFlag = CHECK_BIT(value, 1);
+	return valueFlag;
 }
 
 /**
@@ -423,4 +618,9 @@ void INA228_Init(INA228_HandleTypeDef *ina228, I2C_HandleTypeDef *i2c)
 	INA228_SetConversionDelay(ina228, INA228_NO_DELAY);
 	INA228_SetTempCompensation(ina228, INA228_TEMPERATURE_COMP_DISABLED);
 	INA228_SetAdcRange(ina228, INA228_ADCRANGE_163_84_MV);
+	INA228_SetMode(ina228, INA228_TEMP_CONTINUOUS);
+	INA228_SetBusVoltageConvTime(ina228, INA228_540_US);
+	INA228_SetShuntVoltageConvTime(ina228, INA228_540_US);
+	INA228_SetTemperatureConvTime(ina228, INA228_540_US);
+	INA228_SetAverage(ina228, INA228_256_SAMPLES);
 }
