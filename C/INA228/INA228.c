@@ -34,8 +34,8 @@ HAL_StatusTypeDef INA228_WriteRegister(INA228_HandleTypeDef *ina228, uint8_t reg
 	  uint8_t address[2]; // all writable registers are two bytes
 	  uint8_t isDeviceReady;
 
-	  address[0] = (value >> 8) & 0xFF;
-	  address[1] = (value >> 0) & 0xFF;
+	  address[0] = (value >> 8) & 0xFF; // MSB
+	  address[1] = (value >> 0) & 0xFF; // LSB
 
 	  isDeviceReady = HAL_I2C_IsDeviceReady(ina228->hi2c, (ina228->devAddress) << 1, INA228_TRIALS, HAL_MAX_DELAY);
 
@@ -56,13 +56,13 @@ HAL_StatusTypeDef INA228_WriteRegister(INA228_HandleTypeDef *ina228, uint8_t reg
   * @retval dynamic data read from register's device depending on the register length.
   * 		Min. 8-bit, Max. 16-bit
   */
-uint16_t INA228_ReadRegister(INA228_HandleTypeDef *ina228, uint8_t registerAddress)
+uint64_t INA228_ReadRegister(INA228_HandleTypeDef *ina228, uint8_t registerAddress)
 {
-	uint16_t value = 0;
+	uint64_t value = 0;
 	uint8_t isDeviceReady;
 	uint8_t i;
 
-	uint8_t registerResponse[2] = {0}; // max buf size
+	uint8_t registerResponse[5] = {0}; // max buf size
 	isDeviceReady = HAL_I2C_IsDeviceReady(ina228->hi2c, (ina228->devAddress) << 1, INA228_TRIALS, HAL_MAX_DELAY);
 
 	  if (isDeviceReady == HAL_OK)
@@ -83,10 +83,21 @@ uint16_t INA228_ReadRegister(INA228_HandleTypeDef *ina228, uint8_t registerAddre
   *			the configuration information for connecting to the sensor.
   *@retval	unsigned integer 16-bit data:
   *(+) [15]: RST
+  *0h - Normal Operation
+  *1h - System Reset
   *(+) [14]: RSTACC
+  *0h - Normal Operation
+  *1h - Clears registers to default values for ENERGY and CHARGE
   *(+) [13-6]: CONVRDY
-  *(+) [5]: TEMPCOP
+  *0h - 0 s
+  *1h - 2 ms
+  *FFh - 510 ms
+  *(+) [5]: TEMPCOMP
+  *0h - Shunt temperature compensation disabled
+  *1h - Shunt temperature compensation enabled
   *(+) [4]: ADCRANGE
+  *0h - ±163.84 mV
+  *1h - ±40.96 mV
   *(+) [3-0]: RESERVED - Always read 0
 */
 uint16_t INA228_GetConfig(INA228_HandleTypeDef *ina228)
@@ -201,9 +212,9 @@ uint16_t INA228_GetDieTemperature(INA228_HandleTypeDef *ina228)
   *(+) [23:4]: Calculated output current in Amperes. Two's complement value.
   *(+) [3:0]: Reserved - Always read 0
 */
-uint32_t INA228_GetCurrent(INA228_HandleTypeDef *ina228)
+int32_t INA228_GetCurrent(INA228_HandleTypeDef *ina228)
 {
-	uint32_t data = INA228_ReadRegister(ina228, INA228_CURRENT_REG);
+	int32_t data = INA228_ReadRegister(ina228, INA228_CURRENT_REG);
 	return data;
 }
 
@@ -300,6 +311,16 @@ void INA228_EnergyChargeReset(INA228_HandleTypeDef *ina228)
 
 }
 
+/**
+  *@brief Allows the user to set the delay bits [13:6] for initial ADC conversion of the CONFIG register across IN+ and IN- pins
+  *@param ina228 Pointer to a INA228_HandleTypeDef structure that contains
+  *			the configuration information for connecting to the sensor.
+  *@param mode:
+  *(+) INA228_NO_DELAY
+  *(+) INA228_2_MS_DALY
+  *(+) INA228_510_MS_DELAY
+  *@retval	none
+*/
 void INA228_SetConversionDelay(INA228_HandleTypeDef *ina228, INA228_ConvDly_HandleTypeDef delay)
 {
 	uint16_t result = INA228_GetConfig(ina228);
@@ -486,9 +507,10 @@ void INA228_SetShuntCalibration(INA228_HandleTypeDef *ina228, double shuntResist
 
 	ina228->shuntResistor = shuntResistor;
 	ina228->maximumCurrent = maximumCurrent;
-	ina228->currentLsb = maximumCurrent / pow(2,19);
+	ina228->currentLsb = (maximumCurrent / pow(2,19));
+	//ina228->currentLsb = 1e-6;
 
-	shuntCal = INA229_SCALING_FACTOR * (ina228->currentLsb)  * shuntResistor;
+	shuntCal = INA229_SCALING_FACTOR * (ina228->currentLsb)  * (ina228->shuntResistor);
 
 	(ina228->AdcRange == 0) ? (shuntCal = shuntCal) : (shuntCal = 4 * shuntCal);
 	INA228_WriteRegister(ina228, INA228_SHUNT_CAL_REG, shuntCal);
@@ -502,10 +524,10 @@ void INA228_SetShuntCalibration(INA228_HandleTypeDef *ina228, double shuntResist
 */
 double INA228_ReadCurrent(INA228_HandleTypeDef *ina228)
 {
-	uint32_t rawCurrent = (INA228_GetCurrent(ina228)) >> 4;
+	int32_t rawCurrent = (INA228_GetCurrent(ina228)) >> 4;
 	double current = (ina228->currentLsb) * rawCurrent;
 
-	return current;
+	return current * 1000.0;
 }
 
 /**
@@ -560,7 +582,8 @@ double INA228_ReadShuntVoltage(INA228_HandleTypeDef *ina228)
 {
 	double shuntVoltage;
 	uint32_t rawShunt = INA228_GetShuntVoltage(ina228) >> 4;
-	(ina228->AdcRange == 0) ? (shuntVoltage = rawShunt * INA229_VSHUNT_CONV_FACTOR_ADC_0) : (shuntVoltage = rawShunt * INA229_VSHUNT_CONV_FACTOR_ADC_1);
+	shuntVoltage = rawShunt * (ina228->vshuntConvFactor);
+	//(ina228->AdcRange == 0) ? (shuntVoltage = rawShunt * ina228->vshuntConvFactor) : (shuntVoltage = rawShunt * INA229_VSHUNT_CONV_FACTOR_ADC_1);
 
 	return shuntVoltage;
 }
@@ -595,11 +618,20 @@ double INA228_ReadDieTemperature(INA228_HandleTypeDef *ina228)
 	return dieTemperature;
 }
 
-_Bool INA228_ConversionReadyFlag(INA228_HandleTypeDef *ina228)
+
+
+void INA228_SetAlertPin(INA228_HandleTypeDef *ina228, INA228_CNVR_HandleTypeDef cnvr)
 {
-	value = INA228_GetDiagAlert(ina228);
-	valueFlag = CHECK_BIT(value, 1);
-	return valueFlag;
+	uint16_t result = INA228_GetDiagAlert(ina228);
+	result = (result & INA228_CNVR_MASK) | cnvr;
+	INA228_WriteRegister(ina228, INA228_DIAG_ALERT_REG, result);
+}
+
+void INA228_SetAlertPinPolarity(INA228_HandleTypeDef *ina228, INA228_AlertPinPol_HandleTypeDef pol)
+{
+	uint16_t result = INA228_GetDiagAlert(ina228);
+	result = (result & INA228_APOL_MASK) | pol;
+	INA228_WriteRegister(ina228, INA228_DIAG_ALERT_REG, result);
 }
 
 /**
@@ -615,12 +647,13 @@ void INA228_Init(INA228_HandleTypeDef *ina228, I2C_HandleTypeDef *i2c)
 	ina228->devAddress = INA228_ADDRESS;
 	ina228->hi2c = i2c;
 
-	INA228_SetConversionDelay(ina228, INA228_NO_DELAY);
-	INA228_SetTempCompensation(ina228, INA228_TEMPERATURE_COMP_DISABLED);
+	INA228_SetConversionDelay(ina228, INA228_2_MS_DALY);
+	INA228_SetTempCompensation(ina228, INA228_TEMPERATURE_COMP_ENABLED);
 	INA228_SetAdcRange(ina228, INA228_ADCRANGE_163_84_MV);
-	INA228_SetMode(ina228, INA228_TEMP_CONTINUOUS);
-	INA228_SetBusVoltageConvTime(ina228, INA228_540_US);
-	INA228_SetShuntVoltageConvTime(ina228, INA228_540_US);
+
+	INA228_SetMode(ina228, INA228_TEMP_SHUNT_BUS_CONTINUOUS);
+	INA228_SetBusVoltageConvTime(ina228, INA228_4120_US);
+	INA228_SetShuntVoltageConvTime(ina228, INA228_4120_US);
 	INA228_SetTemperatureConvTime(ina228, INA228_540_US);
-	INA228_SetAverage(ina228, INA228_256_SAMPLES);
+	INA228_SetAverage(ina228, INA228_512_SAMPLES);
 }
