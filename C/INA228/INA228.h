@@ -98,6 +98,9 @@
 #define INA228_VTCT_MASK						0xFFC7
 #define INA228_AVERAGE_MASK						0xFFF8
 
+#define INA228_CNVR_MASK						0xBFFF
+#define INA228_APOL_MASK						0xEFFF
+
 #define INA229_SCALING_FACTOR 					13107.2E6
 #define INA229_DIETEMP_CONV_FACTOR 				7.8125E-3
 #define INA229_VSHUNT_CONV_FACTOR_ADC_0			312.5E-9
@@ -126,20 +129,20 @@ typedef enum
 typedef enum
 {
 	INA228_SHUTDOWN_MODE						= 0x0000,
-	INA228_BUS_VOLT_ONE_SHOT					= 0x1000,
-	INA228_SHUNT_VOLT_ONE_SHOT					= 0x2000,
-	INA228_SHUNT_BUS_VOLT_ONE_SHOT				= 0x3000,
+	INA228_BUS_ONE_SHOT							= 0x1000,
+	INA228_SHUNT_ONE_SHOT						= 0x2000,
+	INA228_SHUNT_BUS_ONE_SHOT					= 0x3000,
 	INA228_TEMP_ONE_SHOT						= 0x4000,
-	INA228_TEMP_BUS_VOLT_ONE_SHOT				= 0x5000,
-	INA228_TEMP_SHUNT_VOLT_ONE_SHOT				= 0x6000,
-	INA228_TEMP_SHUNT_BUS_VOLT_ONE_SHOT			= 0x7000,
-	INA228_BUS_VOLT_CONTINUOUS					= 0x9000,
-	INA228_SHUNT_VOLT_CONTINUOUS				= 0xA000,
-	INA228_SHUNT_BUS_VOLT_CONTINUOUS			= 0xB000,
+	INA228_TEMP_BUS_ONE_SHOT					= 0x5000,
+	INA228_TEMP_SHUNT_ONE_SHOT					= 0x6000,
+	INA228_TEMP_SHUNT_BUS_ONE_SHOT				= 0x7000,
+	INA228_BUS_CONTINUOUS						= 0x9000,
+	INA228_SHUNT_CONTINUOUS						= 0xA000,
+	INA228_SHUNT_BUS_CONTINUOUS					= 0xB000,
 	INA228_TEMP_CONTINUOUS						= 0xC000,
-	INA228_TEMP_VUS_VOLT_CONTINUOUS				= 0xD000,
-	INA228_TEMP_SHUNT_VOLT_CONTINUOUS			= 0xE000,
-	INA228_TEMP_SHUNT_BUS_VOLT_CONTINUOUS		= 0xF000,
+	INA228_TEMP_VUS_CONTINUOUS					= 0xD000,
+	INA228_TEMP_SHUNT_CONTINUOUS				= 0xE000,
+	INA228_TEMP_SHUNT_BUS_CONTINUOUS			= 0xF000,
 }INA228_Mode_HandleTypeDef;
 
 typedef enum
@@ -166,6 +169,18 @@ typedef enum
 	INA228_1024_SAMPLES							= 0x0007
 }INA228_Average_HandleTypeDef;
 
+typedef enum
+{
+	INA228_CNVR_FLAG_ALERT_PIN_DIABLED			= 0x0000,
+	INA228_CNVR_FLAG_ALERT_PIN_ENABLED			= 0x4000,
+}INA228_CNVR_HandleTypeDef;
+
+typedef enum
+{
+	INA228_ALERT_ACTIVE_LOW						= 0x0000,
+	INA228_ALERT_ACTIVE_HIGH					= 0x1000,
+}INA228_AlertPinPol_HandleTypeDef;
+
 typedef struct
 {
 	I2C_HandleTypeDef	*hi2c;
@@ -179,7 +194,7 @@ typedef struct
 
 HAL_StatusTypeDef INA228_WriteRegister(INA228_HandleTypeDef *ina228, uint8_t registerAddress, uint16_t value);
 
-uint16_t INA228_ReadRegister(INA228_HandleTypeDef *ina228, uint8_t registerAddress);
+uint64_t INA228_ReadRegister(INA228_HandleTypeDef *ina228, uint8_t registerAddress);
 
 
 uint16_t INA228_GetConfig(INA228_HandleTypeDef *ina228);
@@ -196,7 +211,7 @@ uint32_t INA228_GetBusVoltage(INA228_HandleTypeDef *ina228);
 
 uint16_t INA228_GetDieTemperature(INA228_HandleTypeDef *ina228);
 
-uint32_t INA228_GetCurrent(INA228_HandleTypeDef *ina228);
+int32_t INA228_GetCurrent(INA228_HandleTypeDef *ina228);
 
 uint32_t INA228_GetPower(INA228_HandleTypeDef *ina228);
 
@@ -233,6 +248,8 @@ void INA228_SetAverage(INA228_HandleTypeDef *ina228, INA228_Average_HandleTypeDe
 void INA228_SetShuntCalibration(INA228_HandleTypeDef *ina228, double shuntResistor, double maximumCurrent);
 
 
+void INA228_SetConversionReady(INA228_HandleTypeDef *ina228);
+
 
 double INA228_ReadCurrent(INA228_HandleTypeDef *ina228);
 
@@ -246,8 +263,12 @@ double INA228_ReadShuntVoltage(INA228_HandleTypeDef *ina228);
 
 double INA228_ReadBusVoltage(INA228_HandleTypeDef *ina228);
 
+double INA228_ReadDieTemperature(INA228_HandleTypeDef *ina228);
 
-_Bool INA228_ConversionReadyFlag(INA228_HandleTypeDef *ina228);
+
+void INA228_SetAlertPin(INA228_HandleTypeDef *ina228, INA228_CNVR_HandleTypeDef cnvr);
+
+void INA228_SetAlertPinPolarity(INA228_HandleTypeDef *ina228, INA228_AlertPinPol_HandleTypeDef pol);
 
 
 void INA228_Init(INA228_HandleTypeDef *ina228, I2C_HandleTypeDef *i2c);
