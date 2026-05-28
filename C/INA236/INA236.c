@@ -1,6 +1,7 @@
 #include "main.h"
 #include "math.h"
 #include "INA236.h"
+#include <stdio.h>
 
 /* Static helper prototypes */
 static double INA236_RoundCurrentLsb(double lsbMin);
@@ -23,11 +24,11 @@ HAL_StatusTypeDef INA236_WriteRegister(INA236_HandleTypeDef *ina236, uint8_t reg
   address[1] = (value >> 0) & 0xFF;
   
   // Check if the device is ready on the I2C bus
-  isDeviceReady = HAL_I2C_IsDeviceReady(ina236->hi2c, (ina236->devAddress) << 1, INA236_TRIALS, HAL_MAX_DELAY);
+  isDeviceReady = HAL_I2C_IsDeviceReady(ina236->hi2c, (ina236->_devAddress) << 1, INA236_TRIALS, HAL_MAX_DELAY);
   if (isDeviceReady == HAL_OK)
   {
     // Write the 16-bit register to the device
-    if (HAL_I2C_Mem_Write(ina236->hi2c, (ina236->devAddress) << 1, registerAddress, I2C_MEMADD_SIZE_8BIT, (uint8_t*)address, I2C_MEMADD_SIZE_16BIT, HAL_MAX_DELAY) == HAL_OK)
+    if (HAL_I2C_Mem_Write(ina236->hi2c, (ina236->_devAddress) << 1, registerAddress, I2C_MEMADD_SIZE_8BIT, (uint8_t*)address, I2C_MEMADD_SIZE_16BIT, HAL_MAX_DELAY) == HAL_OK)
     {
       return HAL_OK;
     }
@@ -48,12 +49,12 @@ uint16_t INA236_ReadRegister(INA236_HandleTypeDef *ina236, uint8_t registerAddre
   HAL_StatusTypeDef isDeviceReady;   
 
   // Check if the device is ready on the I2C bus
-  isDeviceReady = HAL_I2C_IsDeviceReady(ina236->hi2c, (ina236->devAddress) << 1, INA236_TRIALS, HAL_MAX_DELAY);
+  isDeviceReady = HAL_I2C_IsDeviceReady(ina236->hi2c, (ina236->_devAddress) << 1, INA236_TRIALS, HAL_MAX_DELAY);
 
   if (isDeviceReady == HAL_OK)
   {
     // Read the 2-byte register data from the device
-    if (HAL_I2C_Mem_Read(ina236->hi2c, (ina236->devAddress) << 1, registerAddress, I2C_MEMADD_SIZE_8BIT, registerResponse, sizeof(registerResponse), HAL_MAX_DELAY) == HAL_OK)
+    if (HAL_I2C_Mem_Read(ina236->hi2c, (ina236->_devAddress) << 1, registerAddress, I2C_MEMADD_SIZE_8BIT, registerResponse, sizeof(registerResponse), HAL_MAX_DELAY) == HAL_OK)
     {
         // Combine MSB and LSB to return the 16-bit value
         return (uint16_t)((registerResponse[0] << 8) | registerResponse[1]);
@@ -352,7 +353,7 @@ void INA236_ResetDevice(INA236_HandleTypeDef *ina236)
     HAL_Delay(2); 
     
     // Tras el reset, el chip vuelve a su rango de ADC predeterminado de +-81.92 mV.
-    ina236->_adcRange = INA236_ADC_RANGE_81_92MV;
+    ina236->_adcRange = INA236_ADC_RANGE_81_92_MV;
 }
 
 /**
@@ -707,7 +708,7 @@ double INA236_GetShuntVoltage_mV(INA236_HandleTypeDef *ina236)
 double INA236_GetBusVoltage(INA236_HandleTypeDef *ina236)
 {   
     // Read the Bus Voltage Register (Address: 0x02)
-    uint16_t regValue = INA236_INA236_Readregister(ina236, INA236_BUS_VOLTAGE_REGISTER);
+    uint16_t regValue = INA236_ReadRegister(ina236, INA236_BUS_VOLTAGE_REGISTER);
 
         // Safety check: Prevent returning a false 104.85V reading if I2C fails (returns 0xFFFF)
     if (regValue == 0xFFFF)
@@ -726,7 +727,7 @@ double INA236_GetBusVoltage(INA236_HandleTypeDef *ina236)
   */
 double INA236_GetCurrent(INA236_HandleTypeDef *ina236)
 {
-    uint16_t regValue = INA236_INA236_Readregister(ina236, INA236_CURRENT_REGISTER);
+    uint16_t regValue = INA236_ReadRegister(ina236, INA236_CURRENT_REGISTER);
     if (regValue == 0xFFFF) return 0.0;
     return (double)((int16_t)regValue) * ina236->_currentLsb;
     

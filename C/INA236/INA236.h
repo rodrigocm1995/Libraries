@@ -283,7 +283,7 @@ uint16_t INA236_ReadRegister(INA236_HandleTypeDef *ina236, uint8_t registerAddre
 
 /* Initialization & Calibration */
 HAL_StatusTypeDef INA236_Init(INA236_HandleTypeDef *ina236, I2C_HandleTypeDef *i2c, uint8_t devAddress);
-void INA236_SetCalibration(INA236_HandleTypeDef *ina236, double rShuntValue, int maxCurrent, double targetLsb);
+void INA236_SetCalibration(INA236_HandleTypeDef *ina236, double rShuntValue, int maxCurrent);
 void INA236_ResetDevice(INA236_HandleTypeDef *ina236);
 
 /* Configuration Setters & Getters */
