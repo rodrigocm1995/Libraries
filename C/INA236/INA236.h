@@ -65,38 +65,24 @@
 #ifndef INC_INA236_H_
 #define INC_INA236_H_
 
-#define INA236_DEFAULT_ADDRESS          0x40
-#define INA236_TRIALS                   5
+/* Default I2C configuration values */
+#define INA236_DEFAULT_ADDRESS          0x40 /* Default I2C address of INA236 (A0=GND, A1=GND) */
+#define INA236_TRIALS                   5    /* Number of connection trials for I2C communication */
+
+/* Macro to check the state of a specific bit in a variable */
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 
-// Registers
-#define INA236_CONFIGURATION_REGISTER   0x00  /* Reset Value = 4127h */
-#define INA236_SHUNT_VOLTAGE_REGISTER   0x01  /* Reset Value = 0000h */
-#define INA236_BUS_VOLTAGE_REGISTER     0x02  /* Reset Value = 0000h */
-#define INA236_POWER_REGISTER           0x03  /* Reset Value = 0000h */
-#define INA236_CURRENT_REGISTER         0x04  /* Reset Value = 0000h */
-#define INA236_CALIBRATION_REGISTER     0x05  /* Reset Value = 0000h */
-#define INA236_MASK_ENABLE_REGISTER     0x06  /* Reset Value = 0000h */
-#define INA236_ALERT_LIMIT_REGISTER     0x07  /* Reset Value = 0000h */
-#define MANUFACTURER_ID_REGISTER        0x3E  /* Reset Value = 5449h */  
-#define DEVICE_ID_REGISTER              0x3F  /* Reset Value = A080h */
-
-#define INA236_CONFIG_RESERVED          0x4000
-
-// Mask_Enable Register
-#define INA236_SHUNT_OVER_LIMIT         0x8000 // Setting this bit high configures the ALERT pin to be asserted if the shunt voltage conversion result exceeds the value programmed in the LIMIT register
-#define INA236_SHUNT_UNDER_LIMIT        0x4000 // Setting this bit high configures the ALERT pin to be asserted if the shunt voltage conversion result is below the value programmed in the LIMIT register 
-#define INA236_BUS_OVER_LIMIT           0x2000 // Setting this bit high configures the ALERT pin to be asserted if the bus voltage conversion result exceeds the value programmed in the LIMIT Register.
-#define INA236_BUS_UNDER_LIMIT          0x1000 // Setting this bit high configures the ALERT pin to be asserted if the bus voltage conversion result is below the value programmed in the LIMIT register.
-#define INA236_POWER_OVER_LIMIT         0x0800 // Setting this bit high configures the ALERT pin to be asserted if the power result exceeds the value programmed in ther LIMIT register.
-#define INA236_CONVERSION_READY         0x0400 // Setting this bit high configures the ALERT pin to be asserted  when the Conversion Ready flag , bit 3, is asserted indicating that the device is ready for the next conversion.
-#define INA236_MEM_ERROR                0x0020 // CRC or ECC error
-#define INA236_ALERT_FUNCTION_FLAG      0x0010  
-#define INA236_CONVERSION_READY_FLAG    0x0008
-#define INA236_MATH_OVER_FLOW           0x0004 // This bit is set to '1' if an arithmetic operation resulted in an overflow error. It indicates that current and power data may be invalid
-#define INA236_ALERT_POLARITY           0x0002 // Alert polarity bit sets the alert pin polarity. 0b = Normal (Active-low open drain). 1b = Inverted (active-high)
-#define INA236_ALERT_LATCH_ENABLE       0X0001 // When the Alert latch Enable bit is set to Latch mode, the Alert pin and AFF bit remains active following a fault until this register flag has been read. This bit must be set to use the I2C Alert Response function   
-
+/* INA236 Register Map Addresses */
+#define INA236_CONFIGURATION_REGISTER   0x00  /* Configuration Register - Reset Value = 4127h */
+#define INA236_SHUNT_VOLTAGE_REGISTER   0x01  /* Shunt Voltage Register - Reset Value = 0000h */
+#define INA236_BUS_VOLTAGE_REGISTER     0x02  /* Bus Voltage Register   - Reset Value = 0000h */
+#define INA236_POWER_REGISTER           0x03  /* Power Register         - Reset Value = 0000h */
+#define INA236_CURRENT_REGISTER         0x04  /* Current Register       - Reset Value = 0000h */
+#define INA236_CALIBRATION_REGISTER     0x05  /* Calibration Register   - Reset Value = 0000h */
+#define INA236_MASK_ENABLE_REGISTER     0x06  /* Mask/Enable Register   - Reset Value = 0000h */
+#define INA236_ALERT_LIMIT_REGISTER     0x07  /* Alert Limit Register   - Reset Value = 0000h */
+#define MANUFACTURER_ID_REGISTER        0x3E  /* Device ID Register     - Reset Value = 5449h */  
+#define DEVICE_ID_REGISTER              0x3F  /* Manufacturer ID Register -  Reset Value = A080h */
 
 /*******************  Bits definition for CONFIGURATION register  ******************/
 #define INA236_MODE_Pos                 (0U)
@@ -295,27 +281,38 @@ typedef struct
 HAL_StatusTypeDef INA236_WriteRegister(INA236_HandleTypeDef *ina236, uint8_t registerAddress, uint16_t value);
 uint16_t INA236_ReadRegister(INA236_HandleTypeDef *ina236, uint8_t registerAddress);
 
-/* Driver Initialization */
+/* Initialization & Calibration */
 HAL_StatusTypeDef INA236_Init(INA236_HandleTypeDef *ina236, I2C_HandleTypeDef *i2c, uint8_t devAddress);
+void INA236_SetCalibration(INA236_HandleTypeDef *ina236, double rShuntValue, int maxCurrent, double targetLsb);
+void INA236_ResetDevice(INA236_HandleTypeDef *ina236);
 
-/* Driver Configurations */
-void INA236_SetCalibration(INA236_HandleTypeDef *ina236, double rShuntValue, int maxCurrent);
+/* Configuration Setters & Getters */
 void INA236_SetMode(INA236_HandleTypeDef *ina236, INA236_Mode_TypeDef mode);
 void INA236_SetShuntConvTime(INA236_HandleTypeDef *ina236, INA236_ConvTime_TypeDef convTime);
 void INA236_SetBusConvTime(INA236_HandleTypeDef *ina236, INA236_ConvTime_TypeDef convTime);
 void INA236_SetAverage(INA236_HandleTypeDef *ina236, INA236_Avg_TypeDef avg);
 void INA236_SetAdcRange(INA236_HandleTypeDef *ina236, INA236_AdcRange_TypeDef range);
-void INA236_ResetDevice(INA236_HandleTypeDef *ina236);
 
-/* Device Identification */
+/* Alert Management */
+void INA236_SetAlertPolarity(INA236_HandleTypeDef *ina236, INA236_AlertPol_TypeDef polarity);
+INA236_AlertPol_TypeDef INA236_GetAlertPolarity(INA236_HandleTypeDef *ina236);
+void INA236_SetAlertPin(INA236_HandleTypeDef *ina236, INA236_ConvRdy_TypeDef cnvr);
+INA236_ConvRdy_TypeDef INA236_GetAlertPin(INA236_HandleTypeDef *ina236);
+void INA236_SetPowerOverLimit(INA236_HandleTypeDef *ina236, INA236_PowerAlert_TypeDef powerAlert);
+void INA236_SetBusUnderLimit(INA236_HandleTypeDef *ina236, INA236_BusUnderLimitAlert_TypeDef bulAlert);
+void INA236_SetBusOverLimit(INA236_HandleTypeDef *ina236, INA236_BusOverLimitAlert_TypeDef bolAlert);
+void INA236_SetShuntUnderLimit(INA236_HandleTypeDef *ina236, INA236_ShuntUnderLimitAlert_TypeDef sulAlert);
+void INA236_SetShuntOverLimit(INA236_HandleTypeDef *ina236, INA236_ShuntOverLimitAlert_TypeDef solAlert);
+
+/* Diagnostic Readings */
+uint8_t INA236_IsConversionReady(INA236_HandleTypeDef *ina236);
+uint8_t INA236_IsMathOverflowReady(INA236_HandleTypeDef *ina236);
 uint16_t INA236_GetManufacturerID(INA236_HandleTypeDef *ina236);
 uint16_t INA236_GetDeviceID(INA236_HandleTypeDef *ina236);
 
-uint8_t INA236_IsConversionReady(INA236_HandleTypeDef *ina236);
-uint8_t INA236_IsMathOverflowReady(INA236_HandleTypeDef *ina236);
-
-void INA236_SetAlertPolarity(INA236_HandleTypeDef *ina236, INA236_AlertPol_TypeDef polarity);
-INA236_AlertPol_TypeDef INA236_GetAlertPolarity(INA236_HandleTypeDef *ina236);
-
-
+/* Measurement Readings */
+double INA236_GetShuntVoltage_mV(INA236_HandleTypeDef *ina236);
+double INA236_GetBusVoltage(INA236_HandleTypeDef *ina236);
+double INA236_GetCurrent_A(INA236_HandleTypeDef *ina236);
+double INA236_GetPower_W(INA236_HandleTypeDef *ina236);
 #endif

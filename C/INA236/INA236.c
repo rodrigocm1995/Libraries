@@ -2,6 +2,9 @@
 #include "math.h"
 #include "INA236.h"
 
+/* Static helper prototypes */
+static double INA236_RoundCurrentLsb(double lsbMin);
+
 /**
   * @brief  Write a 16-bit value to a specific register of the INA236 device
   * @param  ina236 Pointer to a INA236_HandleTypeDef structure that contains
@@ -714,4 +717,30 @@ double INA236_GetBusVoltage(INA236_HandleTypeDef *ina236)
 
      // Convert raw LSB to Volts (1.6 mV per LSB = 0.0016 V)
     return (double)regValue * 0.0016;
+}
+
+/**
+  * @brief  Read load current and calculate its value in Amperes (A)
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure.
+  * @return Load current in Amperes (A)
+  */
+double INA236_GetCurrent(INA236_HandleTypeDef *ina236)
+{
+    uint16_t regValue = INA236_INA236_Readregister(ina236, INA236_CURRENT_REGISTER);
+    if (regValue == 0xFFFF) return 0.0;
+    return (double)((int16_t)regValue) * ina236->_currentLsb;
+    
+}
+
+/**
+  * @brief  Read calculated power and calculate its value in Watts (W)
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure.
+  * @return Power in Watts (W)
+  */
+double INA236_GetPower_W(INA236_HandleTypeDef *ina236)
+{
+    uint16_t regValue = INA236_ReadRegister(ina236, INA236_POWER_REGISTER);
+    if (regValue == 0xFFFF) return 0.0;
+    // Power LSB is fixed at 32 * Current_LSB
+    return (double)regValue * (32.0 * ina236->_currentLsb);
 }
