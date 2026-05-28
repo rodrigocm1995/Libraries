@@ -225,6 +225,47 @@ typedef enum
     INA236_ADC_RANGE20_48_MV            = 0x1U
 } INA236_AdcRange_TypeDef;
 
+typedef enum
+{
+    INA236_ACTIVE_LOW                   = 0x0U,
+    INA236_ACTIVE_HIGH                  = 0x1U
+} INA236_AlertPol_TypeDef;
+
+typedef enum
+{
+    INA236_CONV_READY_ALERT_DISABLE     = 0x0U,
+    INA236_CONV_READY_ALERT_ENABLE      = 0x1U
+} INA236_ConvRdy_TypeDef;
+
+typedef enum
+{
+    INA236_POWER_LIMIT_ALERT_DISABLE    = 0x0U, 
+    INA236_POWER_LIMIT_ALERT_ENABLE     = 0x1U  
+} INA236_PowerAlert_TypeDef;
+
+typedef enum
+{
+    INA236_BUS_UNDER_LIMIT_ALERT_DISABLE    = 0x0U, 
+    INA236_BUS_UNDER_LIMIT_ALERT_ENABLE     = 0x1U  
+} INA236_BusUnderLimitAlert_TypeDef;
+
+typedef enum
+{
+    INA236_BUS_OVER_LIMIT_ALERT_DISABLE     = 0x0U, 
+    INA236_BUS_OVER_LIMIT_ALERT_ENABLE      = 0x1U  
+} INA236_BusOverLimitAlert_TypeDef;
+
+typedef enum
+{
+    INA236_SHUNT_UNDER_LIMIT_ALERT_DISABLE  = 0x0U, 
+    INA236_SHUNT_UNDER_LIMIT_ALERT_ENABLE   = 0x1U  
+} INA236_ShuntUnderLimitAlert_TypeDef;
+
+typedef enum
+{
+    INA236_SHUNT_OVER_LIMIT_ALERT_DISABLE   = 0x0U, 
+    INA236_SHUNT_OVER_LIMIT_ALERT_ENABLE    = 0x1U  
+} INA236_ShuntOverLimitAlert_TypeDef;
 
 typedef enum {
   SOL = 1, // Shunt Over Limit
@@ -245,6 +286,7 @@ typedef struct
   double             _maximumCurrent;
   double 			 _shuntAdcRange;
   double             _currentLsbMin;
+  double            _currentLsb;
   AlertType_t        alertType;
 } INA236_HandleTypeDef;
 
@@ -268,6 +310,12 @@ void INA236_ResetDevice(INA236_HandleTypeDef *ina236);
 /* Device Identification */
 uint16_t INA236_GetManufacturerID(INA236_HandleTypeDef *ina236);
 uint16_t INA236_GetDeviceID(INA236_HandleTypeDef *ina236);
+
+uint8_t INA236_IsConversionReady(INA236_HandleTypeDef *ina236);
+uint8_t INA236_IsMathOverflowReady(INA236_HandleTypeDef *ina236);
+
+void INA236_SetAlertPolarity(INA236_HandleTypeDef *ina236, INA236_AlertPol_TypeDef polarity);
+INA236_AlertPol_TypeDef INA236_GetAlertPolarity(INA236_HandleTypeDef *ina236);
 
 
 #endif

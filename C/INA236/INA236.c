@@ -92,30 +92,80 @@ HAL_StatusTypeDef INA236_Init(INA236_HandleTypeDef *ina236, I2C_HandleTypeDef *i
 }
 
 /**
-  * @brief  Initializes the CONFIGURATION register's device with default values 
-  * @param  ina236 points to an object of the type Ina236_t 
-  * @param  rShuntValue Shunt Resistor's Value
-  * @param  maxCurrent Maximum current monitored
-  * @retval 
+  * @brief  Round the minimum Current LSB to the next clean 1-2-5 step of a power of 10
+  * @note   This is an internal helper function. It implements a standard 1-2-5 rounding 
+  *         rule (e.g. 10uA, 20uA, 50uA, 100uA) to select a user-friendly Current LSB.
+  *         The selected round LSB is guaranteed to satisfy the datasheet constraint:
+  *         lsbMin <= roundedLsb < 2.5 * lsbMin (well below the 8x limit).
+  * @param  lsbMin The calculated absolute minimum Current LSB (in Amperes/LSB).
+  * @return The rounded, user-friendly Current LSB value (in Amperes).
+  */
+static double INA236_RoundCurrentLsb(double lsbMin)
+{
+    // Find power of 10 below lsbMin
+    double logLsb = log10(lsbMin);
+    double powerOf10 = pow(10, floor(logLsb));
+    
+    // Normalize to a value between 1.0 and 10.0
+    double normalized = lsbMin / powerOf10;
+    double roundedLsb;
+    
+    // Round up to the nearest 1, 2, or 5 step
+    if (normalized <= 1.0)
+    {
+        roundedLsb = 1.0 * powerOf10;
+    }
+    else if (normalized <= 2.0)
+    {
+        roundedLsb = 2.0 * powerOf10;
+    }
+    else if (normalized <= 5.0)
+    {
+        roundedLsb = 5.0 * powerOf10;
+    }
+    else
+    {
+        roundedLsb = 10.0 * powerOf10;
+    }
+    
+    return roundedLsb;
+}
+
+/**
+  * @brief  Calculate and set the calibration value for the INA236 sensor
+  * @note   This function calculates the register calibration value based on the shunt resistor 
+  *         and the maximum expected current. It programs the INA236_CALIBRATION_REGISTER,
+  *         allowing the device to automatically calculate load current and power.
+  *         If ADCRANGE = 1 (±20.48 mV), the calibration value is automatically scaled down by 4.
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified INA236.
+  * @param  rShuntValue Shunt resistor value connected to the chip (in Ohms)
+  * @param  maxCurrent Maximum expected load current to be monitored (in Amperes)
+  * @retval None
   */
 void INA236_SetCalibration(INA236_HandleTypeDef *ina236, double rShuntValue, int maxCurrent)
 {
-  ina236->_shuntResistor = rShuntValue;
-  ina236->_maximumCurrent = maxCurrent;
-  double currentLsbMinimum;
-  uint16_t shuntCal;
+    ina236->_shuntResistor = rShuntValue;
+    ina236->_maximumCurrent = (double)maxCurrent;
 
-  currentLsbMinimum = (double)maxCurrent / 32768.0; // pow(2, 15) = 32765
-  ina236->_currentLsbMin = currentLsbMinimum;
+    // Calculate the minimum Current LSB: Max_Current / 2^15 (2^15 = 32768)
+    double currentLsbMinimum = (double)maxCurrent / 32768.0; 
+    ina236->_currentLsbMin = currentLsbMinimum;
 
-  shuntCal = 0.00512 / (currentLsbMinimum * rShuntValue);
+    // Auto-calculate a clean, round LSB (always satisfies: lsbMin <= lsb < 2.5 * lsbMin)
+    double roundedLsb = INA236_RoundCurrentLsb(currentLsbMinimum);
+    ina236->_currentLsb = roundedLsb;
 
-  if (ina236->_adcRange == 1)
-  {
-    shuntCal = shuntCal / 4;
-  }
+    // Calculate the Calibration register value: 0.00512 / (Current_LSB * Rshunt)
+    uint16_t shuntCal = 0.00512 / (roundedLsb * rShuntValue);
 
-  INA236_WriteRegister(ina236, INA236_CALIBRATION_REGISTER, shuntCal);
+    // According to datasheet, SHUNT_CAL must be divided by 4 for ADCRANGE = 1 (±20.48 mV)
+    if (ina236->_adcRange == 1)
+    {
+        shuntCal = shuntCal / 4;
+    }
+
+    INA236_WriteRegister(ina236, INA236_CALIBRATION_REGISTER, shuntCal);
 }
 
 /**
@@ -134,10 +184,8 @@ void INA236_SetCalibration(INA236_HandleTypeDef *ina236, double rShuntValue, int
   */
 void INA236_SetMode(INA236_HandleTypeDef *ina236, INA236_Mode_TypeDef mode)
 {
-    uint16_t regValue;
-
     // Read the current CONFIGURATION register
-    regValue = INA236_ReadRegister(ina236, INA236_CONFIGURATION_REGISTER);
+    uint16_t regValue = INA236_ReadRegister(ina236, INA236_CONFIGURATION_REGISTER);
 
     // Clear the MODE bits using the mask (bits 0, 1 and 2)
     regValue &= ~INA236_MODE_Mask;
@@ -168,10 +216,8 @@ void INA236_SetMode(INA236_HandleTypeDef *ina236, INA236_Mode_TypeDef mode)
   */
 void INA236_SetShuntConvTime(INA236_HandleTypeDef *ina236, INA236_ConvTime_TypeDef convTime)
 {
-    uint16_t regValue;
-
     // Read the current CONFIGURATION register
-    regValue = INA236_ReadRegister(ina236, INA236_CONFIGURATION_REGISTER);
+    uint16_t regValue = INA236_ReadRegister(ina236, INA236_CONFIGURATION_REGISTER);
 
     // Clear the VSHCT bits using the mask (bits 3, 4 and 5)
     regValue &= ~INA236_VSHCT_Mask;
@@ -202,10 +248,8 @@ void INA236_SetShuntConvTime(INA236_HandleTypeDef *ina236, INA236_ConvTime_TypeD
   */
 void INA236_SetBusConvTime(INA236_HandleTypeDef *ina236, INA236_ConvTime_TypeDef convTime)
 {
-    uint16_t regValue;
-
     // Read the current CONFIGURATION register
-    regValue = INA236_ReadRegister(ina236, INA236_CONFIGURATION_REGISTER);
+    uint16_t regValue = INA236_ReadRegister(ina236, INA236_CONFIGURATION_REGISTER);
 
     // Clear the VBUSCT bits using the mask (bits 6, 7 and 8)
     regValue &= ~INA236_VBUSCT_Mask;
@@ -235,10 +279,8 @@ void INA236_SetBusConvTime(INA236_HandleTypeDef *ina236, INA236_ConvTime_TypeDef
   */
 void INA236_SetAverage(INA236_HandleTypeDef *ina236, INA236_Avg_TypeDef avg)
 {
-    uint16_t regValue;
-
     // Read the current CONFIGURATION register
-    regValue = INA236_ReadRegister(ina236, INA236_CONFIGURATION_REGISTER);
+    uint16_t regValue = INA236_ReadRegister(ina236, INA236_CONFIGURATION_REGISTER);
 
     // Clear the AVG bits using the mask (bits 9, 10 and 11)
     regValue &= ~INA236_AVG_Mask;
@@ -262,10 +304,8 @@ void INA236_SetAverage(INA236_HandleTypeDef *ina236, INA236_Avg_TypeDef avg)
   */
 void INA236_SetAdcRange(INA236_HandleTypeDef *ina236, INA236_AdcRange_TypeDef range)
 {
-    uint16_t regValue;
-
     // Read current register
-    regValue = INA236_ReadRegister(ina236, INA236_CONFIGURATION_REGISTER);
+    uint16_t regValue = INA236_ReadRegister(ina236, INA236_CONFIGURATION_REGISTER);
 
     // Clear ADCRANGE bit (bit 12)
     regValue &= ~INA236_ADCRANGE_Mask;
@@ -320,10 +360,8 @@ void INA236_ResetDevice(INA236_HandleTypeDef *ina236)
   */
 uint16_t INA236_GetManufacturerID(INA236_HandleTypeDef *ina236)
 {
-    uint16_t regValue;
-
     // Read the Manufacturer ID register (Address: 0x3E)
-    regValue = INA236_ReadRegister(ina236, MANUFACTURER_ID_REGISTER);
+    uint16_t regValue = INA236_ReadRegister(ina236, MANUFACTURER_ID_REGISTER);
 
     return regValue;
 }
@@ -336,12 +374,344 @@ uint16_t INA236_GetManufacturerID(INA236_HandleTypeDef *ina236)
   */
 uint16_t INA236_GetDeviceID(INA236_HandleTypeDef *ina236)
 {
-    uint16_t regValue;
-
     // Read the Manufacturer ID register (Address: 0x3F)
-    regValue = INA236_ReadRegister(ina236, DEVICE_ID_REGISTER);
+    uint16_t regValue = INA236_ReadRegister(ina236, DEVICE_ID_REGISTER);
 
     return regValue;
 }
 
+/**
+  * @brief  Check if an arithmetic overflow error occurred (OVF bit is set)
+  * @note   This flag indicates that the current and power data calculation has overflowed
+  *         and the values in those registers may be invalid.
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure.
+  * @retval 1: Math overflow occurred (data may be invalid)
+  *         0: No overflow occurred or read error
+  */
+uint8_t INA236_IsMathOverflowReady(INA236_HandleTypeDef *ina236)
+{
+    // Read the Mask/Enable Register (Address: 0x06)
+    uint16_t regValue = INA236_ReadRegister(ina236, INA236_MASK_ENABLE_REGISTER);
 
+    // Safety check: If read fails (returns 0xFFFF), return 0
+    if (regValue == 0xFFFF)
+    {
+        return 0;
+    }
+
+    // Mask the value to isolate bit 2 (OVF - Math Overflow Flag)
+    // If the bit is set, (regValue & INA236_OVF) will be 0x004 (which is != 0)
+    if ((regValue & INA236_OVF) != 0U)
+    {
+        return 1; // Bit is 1 (Math Overflow occurred)
+    }
+    
+    return 0; // Bit is 0
+}
+
+/**
+  * @brief  Check if a new conversion is ready (CVRF bit is set)
+  * @note   Conversion Ready Flag bit clears under the following conditions:
+  *         1) Writing the configuration register.
+  *         2) Reading the Mask/Enable register. 
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure.
+  * @retval 1: New conversion is ready and data is available
+  *         0: Conversion is not ready or read error occurred
+  */
+uint8_t INA236_IsConversionReady(INA236_HandleTypeDef *ina236)
+{
+    // Read the Mask/Enable Register (Address: 0x06)
+    uint16_t regValue = INA236_ReadRegister(ina236, INA236_MASK_ENABLE_REGISTER);
+
+    // Safety check: If read fails (returns 0xFFFF), return 0
+    if (regValue == 0xFFFF)
+    {
+        return 0;
+    }
+
+    // Mask the value to isolate bit 10 (CNVR_Mask)
+    // If the bit is set, (regValue & INA236_CVRF) will be 0x0008 (which is != 0)
+    if ((regValue & INA236_CVRF) != 0U)
+    {
+        return 1; // Bit is 1 (Conversion Ready)
+    }
+    
+    return 0; // Bit is 0
+}
+
+/**
+  * @brief  Configure the alert pin polarity (active-low or active-high)
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure.
+  * @param  polarity Selected alert pin polarity (Normal or Inverted)
+  *             @arg INA236_ACTIVE_LOW (Normal: Active-Low open drain)
+  *             @arg INA236_ACTIVE_HIGH (Inverted: Active High)
+  * @retval None
+  */
+void INA236_SetAlertPolarity(INA236_HandleTypeDef *ina236, INA236_AlertPol_TypeDef polarity)
+{
+    // Read the current MASK_ENABLE register (Address: 0x06)
+    uint16_t regValue = INA236_ReadRegister(ina236, INA236_MASK_ENABLE_REGISTER);
+
+    // Clear the APOL bit using the mask (bit 1)
+    regValue &= ~INA236_APOL_Mask;
+
+    // Set the new mode by shifting it to its position (MODE_Pos = 1)
+    // and protecting it with the mask
+    regValue |= (polarity << INA236_APOL_Pos) & INA236_APOL_Mask;
+
+    // Write the updated value back to the MASK_ENABLE register
+    INA236_WriteRegister(ina236, INA236_MASK_ENABLE_REGISTER, regValue);
+}
+
+/**
+  * @brief  Enable or disable physical ALERT pin assertion on Conversion Ready event
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure.
+  * @param  cnvr Selected configuration for the Conversion Ready Alert pin assertion.
+  *              This parameter can be one of the following:
+  *              @arg INA236_CONV_READY_ALERT_DISABLE: ALERT pin does not assert on conversion ready
+  *              @arg INA236_CONV_READY_ALERT_ENABLE: ALERT pin asserts when conversion is ready
+  * @retval None
+  */
+void INA236_SetAlertPin(INA236_HandleTypeDef *ina236, INA236_ConvRdy_TypeDef cnvr)
+{
+    // Read the current MASK_ENABLE register (Address: 0x06)
+    uint16_t regValue = INA236_ReadRegister(ina236, INA236_MASK_ENABLE_REGISTER);
+
+    // Clear the CNVR bit using the mask (bit 10)
+    regValue &= ~INA236_CNVR_Mask;
+
+    // Set the new mode by shifting it to its position (CNVR_Pos = 10)
+    // and protecting it with the mask
+    regValue |= (cnvr << INA236_CNVR_Pos) & INA236_CNVR_Mask;
+
+    // Write the updated value back to the MASK_ENABLE register
+    INA236_WriteRegister(ina236, INA236_MASK_ENABLE_REGISTER, regValue);
+}
+
+/**
+  * @brief  Enable or disable the physical ALERT pin assertion on a Power Over Limit event
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified INA236.
+  * @param  powerAlert Selected status for the Power Over Limit alert pin assertion.
+  *                    This parameter can be one of the following values:
+  *                    @arg INA236_POWER_LIMIT_ALERT_DISABLE: ALERT pin does not assert on power over limit (0x0)
+  *                    @arg INA236_POWER_LIMIT_ALERT_ENABLE: ALERT pin asserts when power exceeds the Alert Limit register (0x1)
+  * @retval None
+  */
+void INA236_SetPowerOverLimit(INA236_HandleTypeDef *ina236, INA236_PowerAlert_TypeDef powerAlert)
+{
+    // Read the current MASK_ENABLE register (Address: 0x06)
+    uint16_t regValue = INA236_ReadRegister(ina236, INA236_MASK_ENABLE_REGISTER);
+
+    // Clear the POL bit using the mask (bit 11)
+    regValue &= ~INA236_POL_Mask;
+
+    // Set the new mode by shifting it to its position (POL_Pos = 11)
+    // and protecting it with the mask
+    regValue |= (powerAlert << INA236_POL_Pos) & INA236_POL_Mask;
+
+    // Write the updated value back to the MASK_ENABLE register
+    INA236_WriteRegister(ina236, INA236_MASK_ENABLE_REGISTER, regValue);
+}
+
+/**
+  * @brief  Enable or disable the physical ALERT pin assertion on a Bus Under Limit event
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure.
+  * @param  bulAlert Selected status for the Bus Under Limit alert.
+  *                  This parameter can be one of the following values:
+  *                  @arg INA236_BUS_UNDER_LIMIT_ALERT_DISABLE: ALERT pin does not assert on bus under limit (0x0)
+  *                  @arg INA236_BUS_UNDER_LIMIT_ALERT_ENABLE: ALERT pin asserts when bus voltage is below the Alert Limit (0x1)
+  * @retval None
+  */
+void INA236_SetBusUnderLimit(INA236_HandleTypeDef *ina236, INA236_BusUnderLimitAlert_TypeDef bulAlert)
+{
+    // Read the current MASK_ENABLE register (Address: 0x06)
+    uint16_t regValue = INA236_ReadRegister(ina236, INA236_MASK_ENABLE_REGISTER);
+
+    // Clear the BUL bit using the mask (bit 12)
+    regValue &= ~INA236_BUL_Mask;
+
+    // Set the new mode by shifting it to its position (BUL_Pos = 12)
+    // and protecting it with the mask
+    regValue |= (bulAlert << INA236_BUL_Pos) & INA236_BUL_Mask;
+
+    // Write the updated value back to the MASK_ENABLE register
+    INA236_WriteRegister(ina236, INA236_MASK_ENABLE_REGISTER, regValue);
+}
+
+/**
+  * @brief  Enable or disable the physical ALERT pin assertion on a Bus Over Limit event
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure.
+  * @param  bolAlert Selected status for the Bus Over Limit alert.
+  *                  This parameter can be one of the following values:
+  *                  @arg INA236_BUS_OVER_LIMIT_ALERT_DISABLE: ALERT pin does not assert on bus over limit (0x0)
+  *                  @arg INA236_BUS_OVER_LIMIT_ALERT_ENABLE: ALERT pin asserts when bus voltage is above the Alert Limit (0x1)
+  * @retval None
+  */
+void INA236_SetBusOverLimit(INA236_HandleTypeDef *ina236, INA236_BusOverLimitAlert_TypeDef bolAlert)
+{
+    // Read the current MASK_ENABLE register (Address: 0x06)
+    uint16_t regValue = INA236_ReadRegister(ina236, INA236_MASK_ENABLE_REGISTER);
+    // Clear the BOL bit using the mask (bit 13)
+    regValue &= ~INA236_BOL_Mask;
+    // Set the new configuration by shifting it to its position (BOL_Pos = 13)
+    // and protecting it with the mask
+    regValue |= (bolAlert << INA236_BOL_Pos) & INA236_BOL_Mask;
+    // Write the updated value back to the MASK_ENABLE register
+    INA236_WriteRegister(ina236, INA236_MASK_ENABLE_REGISTER, regValue);
+}
+
+/**
+  * @brief  Enable or disable the physical ALERT pin assertion on a Shunt Under Limit event
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure.
+  * @param  sulAlert Selected status for the Shunt Under Limit alert.
+  *                  This parameter can be one of the following values:
+  *                  @arg INA236_SHUNT_UNDER_LIMIT_ALERT_DISABLE: ALERT pin does not assert on shunt under limit (0x0)
+  *                  @arg INA236_SHUNT_UNDER_LIMIT_ALERT_ENABLE: ALERT pin asserts when shunt voltage is below the Alert Limit (0x1)
+  * @retval None
+  */
+void INA236_SetShuntUnderLimit(INA236_HandleTypeDef *ina236, INA236_ShuntUnderLimitAlert_TypeDef sulAlert)
+{
+    // Read the current MASK_ENABLE register (Address: 0x06)
+    uint16_t regValue = INA236_ReadRegister(ina236, INA236_MASK_ENABLE_REGISTER);
+    // Clear the SUL bit using the mask (bit 14)
+    regValue &= ~INA236_SUL_Mask;
+    // Set the new configuration by shifting it to its position (SUL_Pos = 14)
+    // and protecting it with the mask
+    regValue |= (sulAlert << INA236_SUL_Pos) & INA236_SUL_Mask;
+    // Write the updated value back to the MASK_ENABLE register
+    INA236_WriteRegister(ina236, INA236_MASK_ENABLE_REGISTER, regValue);
+}
+
+/**
+  * @brief  Enable or disable the physical ALERT pin assertion on a Shunt Over Limit event
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure.
+  * @param  solAlert Selected status for the Shunt Over Limit alert.
+  *                  This parameter can be one of the following values:
+  *                  @arg INA236_SHUNT_OVER_LIMIT_ALERT_DISABLE: ALERT pin does not assert on shunt over limit (0x0)
+  *                  @arg INA236_SHUNT_OVER_LIMIT_ALERT_ENABLE: ALERT pin asserts when shunt voltage is above the Alert Limit (0x1)
+  * @retval None
+  */
+void INA236_SetShuntOverLimit(INA236_HandleTypeDef *ina236, INA236_ShuntOverLimitAlert_TypeDef solAlert)
+{
+    // Read the current MASK_ENABLE register (Address: 0x06)
+    uint16_t regValue = INA236_ReadRegister(ina236, INA236_MASK_ENABLE_REGISTER);
+    // Clear the SOL bit using the mask (bit 15)
+    regValue &= ~INA236_SOL_Mask;
+    // Set the new configuration by shifting it to its position (SOL_Pos = 15)
+    // and protecting it with the mask
+    regValue |= (solAlert << INA236_SOL_Pos) & INA236_SOL_Mask;
+    // Write the updated value back to the MASK_ENABLE register
+    INA236_WriteRegister(ina236, INA236_MASK_ENABLE_REGISTER, regValue);
+}
+
+
+/** @brief  Retrieve the configured alert pin polarity
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure.
+  * @return Configured alert polarity (INA236_ACTIVE_LOW or INA236_ACTIVE_HIGH)
+  */
+INA236_AlertPol_TypeDef INA236_GetAlertPolarity(INA236_HandleTypeDef *ina236)
+{
+    // Read the Mask/Enable Register (Address: 0x06)
+    uint16_t regValue = INA236_ReadRegister(ina236, INA236_MASK_ENABLE_REGISTER);
+
+    // Safety check: If reading fails, return the default polarity (active low)
+    if (regValue == 0xFFFF)
+    {
+        return INA236_ACTIVE_LOW;
+    }
+    // Isolate the APOL bit and shift it right to return the logical value (0 or 1)
+    //    (regValue & INA236_APOL) gives 0x0002 or 0x0000.
+    //    Shifting it right by INA236_APOL_Pos (1) gives 0x0001 or 0x0000, matching the enum.
+    INA236_AlertPol_TypeDef polarity = (INA236_AlertPol_TypeDef)((regValue & INA236_APOL) >> INA236_APOL_Pos);
+    
+    // Print the corresponding polarity to the console
+    if (polarity == INA236_ACTIVE_HIGH)
+    {
+        printf("Alert pin is configured as ACTIVE-HIGH\r\n");
+    }
+    else
+    {
+        printf("Alert pin is configured as ACTIVE-LOW\r\n");
+    }
+
+    return polarity;
+}   
+
+/**
+  * @brief  Retrieve and print the configuration of the ALERT pin assertion on Conversion Ready
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified INA236.
+  * @return Configured status for the conversion ready alert pin (INA236_CONV_READY_ALERT_DISABLE 
+  *         or INA236_CONV_READY_ALERT_ENABLE)
+  */
+INA236_ConvRdy_TypeDef INA236_GetAlertPin(INA236_HandleTypeDef *ina236)
+{
+    // Read the Mask/Enable Register (Address: 0x06)
+    uint16_t regValue = INA236_ReadRegister(ina236, INA236_MASK_ENABLE_REGISTER);
+
+    // Safety check: If reading fails, return the default value (Disable)
+    if (regValue == 0xFFFF)
+    {
+        printf("ERROR - ALERT pin does not assert on conversion ready\r\n");
+        return INA236_CONV_READY_ALERT_DISABLE;
+    }
+
+    // Isolate the CNVR bit and shift it right to return the logical value (0 or 1)
+    //    (regValue & INA236_CNVR) gives 0x0400 or 0x0000.
+    //    Shifting it right by INA236_CNVR_Pos (10) gives 0x0001 or 0x0000, matching the enum.
+    INA236_ConvRdy_TypeDef alert = (INA236_ConvRdy_TypeDef)((regValue & INA236_CNVR) >> INA236_CNVR_Pos);
+    
+    // 4. Print the corresponding alert configuration to the console (FIXED: changed 'polarity' to 'alert')
+    if (alert == INA236_CONV_READY_ALERT_ENABLE)
+    {
+        printf("ALERT pin asserts when conversion is ready\r\n");
+    }
+    else
+    {
+        printf("ALERT pin does not assert on conversion ready\r\n");
+    }
+
+    return alert;
+} 
+
+/**
+  * @brief  Read the shunt voltage and calculate its value in millivolts (mV)
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified INA236.
+  * @return Shunt voltage reading in millivolts (mV), or 0.0 if the read operation fails
+  */
+double INA236_GetShuntVoltage_mV(INA236_HandleTypeDef *ina236)
+{
+    // Read the Shunt Voltage Register (Address: 0x01)
+    uint16_t regValue = INA236_ReadRegister(ina236, INA236_SHUNT_VOLTAGE_REGISTER);
+
+    // Cast to signed 16-bit integer (two's complement)
+    // This preserves the negative sign if current is flowing in reverse
+    int16_t rawValue = (int16_t)regValue;
+
+    // Calculate the voltage: raw_value * resolution (in Volts) * 1000 (to convert to mV)
+    return (double)rawValue * ina236->_resolution * 1000.0;
+}
+
+/**
+  * @brief  Read the bus voltage and calculate its value in Volts (V)
+  * @note   The INA236 bus voltage register has a fixed resolution of 1.6 mV/LSB (0.0016 V/LSB).
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified INA236.
+  * @return Bus voltage in Volts (V), or 0.0 if the read operation fails
+  */
+double INA236_GetBusVoltage(INA236_HandleTypeDef *ina236)
+{   
+    // Read the Bus Voltage Register (Address: 0x02)
+    uint16_t regValue = INA236_INA236_Readregister(ina236, INA236_BUS_VOLTAGE_REGISTER);
+
+        // Safety check: Prevent returning a false 104.85V reading if I2C fails (returns 0xFFFF)
+    if (regValue == 0xFFFF)
+    {
+        return 0.0;
+    }
+
+     // Convert raw LSB to Volts (1.6 mV per LSB = 0.0016 V)
+    return (double)regValue * 0.0016;
+}
