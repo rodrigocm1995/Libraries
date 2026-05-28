@@ -122,7 +122,7 @@
 
 #define INA236_AVG_Pos                  (9U)
 #define INA236_AVG_Mask                 (0x7U << INA236_AVG_Pos)
-#define INA236_AVG                      INA236_L_Mask
+#define INA236_AVG                      INA236_AVG_Mask
 #define INA236_AVG_0                    (0x1U << INA236_AVG_Pos)
 #define INA236_AVG_1                    (0x2U << INA236_AVG_Pos)
 #define INA236_AVG_2                    (0x4U << INA236_AVG_Pos)
@@ -162,7 +162,7 @@
 
 #define INA236_CNVR_Pos                 (10U)
 #define INA236_CNVR_Mask                (0x1U << INA236_CNVR_Pos)
-#define INA26_CNVR                      INA236_CNVR_Mask
+#define INA236_CNVR                      INA236_CNVR_Mask
 
 #define INA236_POL_Pos                  (11U)
 #define INA236_POL_Mask                 (0x1U << INA236_POL_Pos)
@@ -249,35 +249,25 @@ typedef struct
 } INA236_HandleTypeDef;
 
 
-
+/* Prototypes for low-level register interface */
 HAL_StatusTypeDef INA236_WriteRegister(INA236_HandleTypeDef *ina236, uint8_t registerAddress, uint16_t value);
-
 uint16_t INA236_ReadRegister(INA236_HandleTypeDef *ina236, uint8_t registerAddress);
 
+/* Driver Initialization */
 HAL_StatusTypeDef INA236_Init(INA236_HandleTypeDef *ina236, I2C_HandleTypeDef *i2c, uint8_t devAddress);
 
-uint8_t ina236DefaulInit(Ina236_t *ina236, I2C_HandleTypeDef *i2c, uint8_t devAddress);
-
+/* Driver Configurations */
 void INA236_SetCalibration(INA236_HandleTypeDef *ina236, double rShuntValue, int maxCurrent);
-
-
-
 void INA236_SetMode(INA236_HandleTypeDef *ina236, INA236_Mode_TypeDef mode);
-
 void INA236_SetShuntConvTime(INA236_HandleTypeDef *ina236, INA236_ConvTime_TypeDef convTime);
-
 void INA236_SetBusConvTime(INA236_HandleTypeDef *ina236, INA236_ConvTime_TypeDef convTime);
-
 void INA236_SetAverage(INA236_HandleTypeDef *ina236, INA236_Avg_TypeDef avg);
-
 void INA236_SetAdcRange(INA236_HandleTypeDef *ina236, INA236_AdcRange_TypeDef range);
-
 void INA236_ResetDevice(INA236_HandleTypeDef *ina236);
 
-
-void INA236_GetManufacturerID(INA236_HandleTypeDef *ina236);
-
-uint16_t INA236_GetDeviceID(INA236_HandleTypeDef ina236);
+/* Device Identification */
+uint16_t INA236_GetManufacturerID(INA236_HandleTypeDef *ina236);
+uint16_t INA236_GetDeviceID(INA236_HandleTypeDef *ina236);
 
 
 #endif

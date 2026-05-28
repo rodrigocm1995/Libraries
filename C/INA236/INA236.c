@@ -105,7 +105,7 @@ void INA236_SetCalibration(INA236_HandleTypeDef *ina236, double rShuntValue, int
   double currentLsbMinimum;
   uint16_t shuntCal;
 
-  currentLsbMinimum = maxCurrent / pow(2, 15);
+  currentLsbMinimum = (double)maxCurrent / 32768.0; // pow(2, 15) = 32765
   ina236->_currentLsbMin = currentLsbMinimum;
 
   shuntCal = 0.00512 / (currentLsbMinimum * rShuntValue);
@@ -280,7 +280,7 @@ void INA236_SetAdcRange(INA236_HandleTypeDef *ina236, INA236_AdcRange_TypeDef ra
     ina236->_adcRange = (_Bool)range;
 
     // Update the Shunt ADC limit in Volts (V) for physical SI calculations
-    if (adcRange == INA236_ADC_RANGE20_48_MV)
+    if (range == INA236_ADC_RANGE20_48_MV)
     {
         ina236->_shuntAdcRange = 0.02048;   // ±20.48 mV
         ina236->_resolution = 0.000000625;  // 625 nV/LSB 
@@ -309,7 +309,7 @@ void INA236_ResetDevice(INA236_HandleTypeDef *ina236)
     HAL_Delay(2); 
     
     // Tras el reset, el chip vuelve a su rango de ADC predeterminado de +-81.92 mV.
-    ina236->_rangeAdc = INA236_ADC_RANGE_81_92MV;
+    ina236->_adcRange = INA236_ADC_RANGE_81_92MV;
 }
 
 /**
@@ -334,12 +334,12 @@ uint16_t INA236_GetManufacturerID(INA236_HandleTypeDef *ina236)
   *                the configuration and driver state for the specified INA236.
   * @return 16-bit Device ID (Expected value is 0xA080), or 0xFFFF if reading fails
   */
-uint16_t INA236_GetDeviceID(INA236_HandleTypeDef ina236)
+uint16_t INA236_GetDeviceID(INA236_HandleTypeDef *ina236)
 {
     uint16_t regValue;
 
     // Read the Manufacturer ID register (Address: 0x3F)
-    regValue = INA236_ReadRegister(ina236, MANUFACTURER_ID_REGISTER);
+    regValue = INA236_ReadRegister(ina236, DEVICE_ID_REGISTER);
 
     return regValue;
 }
