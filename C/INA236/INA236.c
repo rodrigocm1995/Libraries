@@ -3,110 +3,92 @@
 #include "INA236.h"
 
 /**
-  * @brief  Write an amount of data in blocking mode to a specific memory address
-  * @param  ina219 Pointer to a I2C_HandleTypeDef structure that contains
-  *                the configuration information for the specified I2C.
-  * @param  registerAddress Target device address: The device 7 bits address value
-  *         in datasheet must be shifted to the left before calling the interface
-  * @param  value The data that must be written in the register
+  * @brief  Write a 16-bit value to a specific register of the INA236 device
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified INA236.
+  * @param  registerAddress Internal register address of the INA236 to write to (e.g., 0x00, 0x05)
+  * @param  value The 16-bit data word to be written into the target register
+  * @retval HAL_OK: Write operation completed successfully
+  * @retval HAL_ERROR: Device is not ready or write operation failed
   */
-void ina236writeRegister(Ina236_t *ina236, uint8_t registerAddress, uint16_t value)
+HAL_StatusTypeDef INA236_WriteRegister(INA236_HandleTypeDef *ina236, uint8_t registerAddress, uint16_t value)
 {
   uint8_t address[2];
-  uint8_t isDeviceReady;
-
+  HAL_StatusTypeDef isDeviceReady;
+  // Split the 16-bit value into two bytes (MSB first)
   address[0] = (value >> 8) & 0xFF;
   address[1] = (value >> 0) & 0xFF;
   
+  // Check if the device is ready on the I2C bus
+  isDeviceReady = HAL_I2C_IsDeviceReady(ina236->hi2c, (ina236->devAddress) << 1, INA236_TRIALS, HAL_MAX_DELAY);
+  if (isDeviceReady == HAL_OK)
+  {
+    // Write the 16-bit register to the device
+    if (HAL_I2C_Mem_Write(ina236->hi2c, (ina236->devAddress) << 1, registerAddress, I2C_MEMADD_SIZE_8BIT, (uint8_t*)address, I2C_MEMADD_SIZE_16BIT, HAL_MAX_DELAY) == HAL_OK)
+    {
+      return HAL_OK;
+    }
+  }
+  return HAL_ERROR;
+}
+
+/**
+  * @brief  Read a 16-bit value from a specific register of the INA236 device
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified INA236.
+  * @param  registerAddress Internal register address of the INA236 to read from (e.g., 0x00, 0x01)
+  * @return 16-bit data read from register, or 0xFFFF if the operation fails
+  */
+uint16_t INA236_ReadRegister(INA236_HandleTypeDef *ina236, uint8_t registerAddress)
+{
+  uint8_t registerResponse[2] = {0}; 
+  HAL_StatusTypeDef isDeviceReady;   
+
+  // Check if the device is ready on the I2C bus
   isDeviceReady = HAL_I2C_IsDeviceReady(ina236->hi2c, (ina236->devAddress) << 1, INA236_TRIALS, HAL_MAX_DELAY);
 
   if (isDeviceReady == HAL_OK)
   {
-    HAL_I2C_Mem_Write(ina236->hi2c, (ina236->devAddress) << 1, registerAddress, I2C_MEMADD_SIZE_8BIT, (uint8_t*)address, I2C_MEMADD_SIZE_16BIT, HAL_MAX_DELAY);
+    // Read the 2-byte register data from the device
+    if (HAL_I2C_Mem_Read(ina236->hi2c, (ina236->devAddress) << 1, registerAddress, I2C_MEMADD_SIZE_8BIT, registerResponse, sizeof(registerResponse), HAL_MAX_DELAY) == HAL_OK)
+    {
+        // Combine MSB and LSB to return the 16-bit value
+        return (uint16_t)((registerResponse[0] << 8) | registerResponse[1]);
+    }    
   }
+  // Returns a maximum control value (0xFFFF) indicating a communication error
+  return 0xFFFF;
 }
+
 
 /**
-  * @brief  Read an amount of data in blocking mode from a specific memory address
-  * @param  hi2c Pointer to a I2C_HandleTypeDef structure that contains
-  *                the configuration information for the specified I2C.
-  * @param  registerAddress Target device address: The device 7 bits address value
-  * @retval 16-bit data read from register's device
+  * @brief  Initializes the INA236 device handler and configures its registers
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure.
+  * @param  i2c Pointer to a I2C_HandleTypeDef structure (HAL I2C handler).
+  * @param  devAddress Target device 7-bit I2C address.
+  * @retval HAL_OK: Device was successfully initialized and responded to connection check
+  * @retval HAL_ERROR: Device did not respond or configuration failed
   */
-uint16_t ina236readRegister(Ina236_t *ina236, uint8_t registerAddress)
+HAL_StatusTypeDef INA236_Init(INA236_HandleTypeDef *ina236, I2C_HandleTypeDef *i2c, uint8_t devAddress)
 {
-  uint8_t registerResponse[2];
-  uint8_t isDeviceReady;
-
-  isDeviceReady = HAL_I2C_IsDeviceReady(ina236->hi2c, (ina236->devAddress) << 1, INA236_TRIALS, HAL_MAX_DELAY);
-
-  if (isDeviceReady == HAL_OK)
-  {
-    HAL_I2C_Mem_Read(ina236->hi2c, (ina236->devAddress) << 1, registerAddress, I2C_MEMADD_SIZE_8BIT, registerResponse, sizeof(registerResponse), HAL_MAX_DELAY);
-  }
-
-  return ((registerResponse[0] << 8) | registerResponse[1]);
-}
-
-/**
-  * @brief  Initializes the CONFIGURATION register's device with default values 
-  * @param  ina236 points to an object of the type Ina236_t 
-  * @param  hi2c Pointer to a I2C_HandleTypeDef structure that contains
-  *                the configuration information for the specified I2C.
-  * @param  devAddress Target device address: The device 7 bits address value
-  * @retval 16-bit data read from register's device
-  */
-uint8_t ina236DefaulInit(Ina236_t *ina236, I2C_HandleTypeDef *i2c, uint8_t devAddress)
-{
+  // Bind physical communication parameters to local handler
   ina236->hi2c = i2c;
-  ina236->devAddress = devAddress;
-  ina236->shuntAdcRange = 2.5 * pow(10, -6);
-  uint16_t configValue;
-  uint8_t isDeviceReady;
+  ina236->_devAddress = devAddress;
 
-  configValue = INA236_CONFIG_RESERVED | INA236_ADCRANGE_81DOT92_MILIVOLT | INA236_1_SAMPLE | INA236_VBUSCT_1100_US | INA236_VSHCT_1100_US | INA236_CONTINUOUS_SHUNTBUS_VOLTAGE;
-  isDeviceReady = HAL_I2C_IsDeviceReady(i2c, devAddress << 1, INA236_TRIALS, HAL_MAX_DELAY);
-
-  if (isDeviceReady == HAL_OK)
+  // 1. Verify if the sensor is physically responding on the I2C bus
+  if (HAL_I2C_IsDeviceReady(ina236->hi2c, (ina236->_devAddress) << 1, INA236_TRIALS, HAL_MAX_DELAY) != HAL_OK)
   {
-    //HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
-    ina236writeRegister(ina236, INA236_CONFIGURATION_REGISTER, configValue);
-    ina236ResetMaskRegister(ina236);
-    return 1;
+    return HAL_ERROR;
   }
 
-  return 0;
-}
+  // 2. Configure default settings
+  INA236_SetMode(ina236, INA236_CONTINUOUS_SHUNT_BUS_VOLTAGE);
+  INA236_SetShuntConvTime(ina236, INA236_1100_US);
+  INA236_SetBusConvTime(ina236, INA236_1100_US);
+  INA236_SetAverage(ina236, INA236_64_SAMPLES);
+  INA236_SetAdcRange(ina236, INA236_ADC_RANGE_81_92_MV);
 
-uint8_t ina236Init(Ina236_t *ina236, I2C_HandleTypeDef *i2c, uint8_t devAddress, AdcRange_t adcRange, Avg_t samples, VbusConvertionTime_t busConvertionTime, ShuntConvertionTime_t shuntConvertionTime, ina236Mode_t mode)
-{
-  ina236->hi2c = i2c;
-  ina236->devAddress = devAddress;
-  uint16_t configValue;
-  uint8_t isDeviceReady;
-
-  if (adcRange == INA236_ADCRANGE_81DOT92_MILIVOLT)
-  {
-	  ina236->shuntAdcRange = 2.5 * pow(10, -6);
-	  ina236->rangeAdc = 0;
-  }
-  else if (adcRange == INA236_ADCRANGE_20DOT48_MILIVOLT)
-  {
-	  ina236->shuntAdcRange = 625 * pow(10, -9);
-	  ina236->rangeAdc = 1;
-  }
-
-  configValue = INA236_CONFIG_RESERVED | adcRange | samples | busConvertionTime | shuntConvertionTime | mode;
-  isDeviceReady = HAL_I2C_IsDeviceReady(i2c, devAddress << 1, INA236_TRIALS, HAL_MAX_DELAY);
-
-  if (isDeviceReady == HAL_OK)
-  {
-    //HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
-    ina236writeRegister(ina236, INA236_CONFIGURATION_REGISTER, configValue);
-    return 1;
-  }
-
-  return 0; 
+  return HAL_OK;
 }
 
 /**
@@ -116,125 +98,250 @@ uint8_t ina236Init(Ina236_t *ina236, I2C_HandleTypeDef *i2c, uint8_t devAddress,
   * @param  maxCurrent Maximum current monitored
   * @retval 
   */
-void ina236SetCalibration(Ina236_t *ina236, double rShuntValue, int maxCurrent)
+void INA236_SetCalibration(INA236_HandleTypeDef *ina236, double rShuntValue, int maxCurrent)
 {
-  ina236->shuntResistor = rShuntValue;
-  ina236->maximumCurrent = maxCurrent;
+  ina236->_shuntResistor = rShuntValue;
+  ina236->_maximumCurrent = maxCurrent;
   double currentLsbMinimum;
   uint16_t shuntCal;
 
   currentLsbMinimum = maxCurrent / pow(2, 15);
-  if (maxCurrent < 3) currentLsbMinimum = 100.0 * pow(10, -6);
-  else if (maxCurrent > 3 && maxCurrent <= 6) currentLsbMinimum  = 200.0 * pow(10, -6);
-  else if (maxCurrent > 6 && maxCurrent <= 9) currentLsbMinimum  = 300.0 * pow(10, -6);
-  else if (maxCurrent > 9 && maxCurrent <= 13) currentLsbMinimum = 500.0 * pow(10, -6);
-  else if (maxCurrent > 13 && maxCurrent <= 16) currentLsbMinimum = 500.0 * pow(10, -6);
-  else if (maxCurrent > 16 && maxCurrent <= 19) currentLsbMinimum = 600.0 * pow(10, -6);
-
-  ina236->currentLsbMin = currentLsbMinimum;
+  ina236->_currentLsbMin = currentLsbMinimum;
 
   shuntCal = 0.00512 / (currentLsbMinimum * rShuntValue);
 
-  if (ina236->rangeAdc == 1)
+  if (ina236->_adcRange == 1)
   {
     shuntCal = shuntCal / 4;
   }
 
-  ina236writeRegister(ina236, INA236_CALIBRATION_REGISTER, shuntCal);
+  INA236_WriteRegister(ina236, INA236_CALIBRATION_REGISTER, shuntCal);
 }
 
-uint8_t ina236SetMaskRegister(Ina236_t *ina236, AlertType_t alertType)
+/**
+  * @brief  Configure the operating mode of the INA236 device
+  * @param  handler Pointer to a INA236_HandleTypeDef structure that contains
+  *                 the configuration and driver state for the specified INA236.
+  * @param  mode Selected operating mode. This parameter can be one of the following values:
+  *         @arg INA236_SHUTDOWN: Shutdown mode (0x0)
+  *         @arg INA236_SHUNT_VOLTAGE_ONE_SHOT: Shunt voltage triggered mode (0x1)
+  *         @arg INA236_BUS_VOLTAGE_ONE_SHOT: Bus voltage triggered mode (0x2)
+  *         @arg INA236_SHUNT_BUS_VOLTAGE_ONE_SHOT: Shunt and Bus voltage triggered mode (0x3)
+  *         @arg INA236_CONTINUOUS_SHUNT_VOLTAGE: Continuous shunt voltage mode (0x5)
+  *         @arg INA236_CONTINUOUS_BUS_VOLTAGE: Continuous bus voltage mode (0x6)
+  *         @arg INA236_CONTINUOUS_SHUNT_BUS_VOLTAGE: Continuous shunt and bus voltage mode (0x7)
+  * @retval None
+  */
+void INA236_SetMode(INA236_HandleTypeDef *ina236, INA236_Mode_TypeDef mode)
 {
-  ina236->alertType = alertType;
-  uint16_t value;
+    uint16_t regValue;
 
-  switch(alertType)
-  {
-    case 1:
-      value = INA236_SHUNT_OVER_LIMIT;
-      break;
-    case 2:
-      value = INA236_SHUNT_UNDER_LIMIT;
-      break;
-    case 3:
-      value = INA236_BUS_OVER_LIMIT;
-      break;
-    case 4: 
-      value = INA236_BUS_UNDER_LIMIT;
-      break;
-    case 5:
-      value = INA236_POWER_OVER_LIMIT;
-      break;
-    case 6:
-      value = INA236_CONVERSION_READY;
-      break;
-    default: return 0;
+    // Read the current CONFIGURATION register
+    regValue = INA236_ReadRegister(ina236, INA236_CONFIGURATION_REGISTER);
 
+    // Clear the MODE bits using the mask (bits 0, 1 and 2)
+    regValue &= ~INA236_MODE_Mask;
 
-  }
-  value = value | 0x0000;
-  ina236writeRegister(ina236, INA236_MASK_ENABLE_REGISTER, value);
-  return value;
+    // Set the new mode by shifting it to its position (MODE_Pos = 0)
+    // and protecting it with the mask
+    regValue |= (mode << INA236_MODE_Pos) & INA236_MODE_Mask;
+
+    //Write the resulting value back to the register
+    INA236_WriteRegister(ina236, INA236_CONFIGURATION_REGISTER, regValue);
 }
 
-void ina236ResetMaskRegister(Ina236_t *ina236)
+/**
+  * @brief  Configure the conversion time for the shunt voltage measurement
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified INA236.
+  * @param  convTime Selected conversion time to be set in the configuration register.
+  *                  This parameter can be one of the following values:
+  *                  @arg INA236_140_US: 140 microseconds (0x0)
+  *                  @arg INA236_204_US: 204 microseconds (0x1)
+  *                  @arg INA236_332_US: 332 microseconds (0x2)
+  *                  @arg INA236_588_US: 588 microseconds (0x3)
+  *                  @arg INA236_1100_US: 1100 microseconds (0x4)
+  *                  @arg INA236_2116_US: 2116 microseconds (0x5)
+  *                  @arg INA236_4156_US: 4156 microseconds (0x6)
+  *                  @arg INA236_8244_US: 8244 microseconds (0x7)
+  * @retval None
+  */
+void INA236_SetShuntConvTime(INA236_HandleTypeDef *ina236, INA236_ConvTime_TypeDef convTime)
 {
-  ina236writeRegister(ina236, INA236_MASK_ENABLE_REGISTER, 0x0000);
+    uint16_t regValue;
+
+    // Read the current CONFIGURATION register
+    regValue = INA236_ReadRegister(ina236, INA236_CONFIGURATION_REGISTER);
+
+    // Clear the VSHCT bits using the mask (bits 3, 4 and 5)
+    regValue &= ~INA236_VSHCT_Mask;
+
+    // Set the new VSHCT by shifting it to its position (VSHCT_Pos = 3)
+    // and protecting it with the mask
+    regValue |= (convTime << INA236_VSHCT_Pos) & INA236_VSHCT_Mask;
+
+    //Write the resulting value back to the register
+    INA236_WriteRegister(ina236, INA236_CONFIGURATION_REGISTER, regValue);
 }
 
-void ina236SetCurrentAlertLimit(Ina236_t *ina236, double currentLimit)
+/**
+  * @brief  Configure the conversion time for the bus voltage measurement
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified INA236.
+  * @param  convTime Selected conversion time to be set in the configuration register
+  *                  This parameter can be one of the following values:
+  *                  @arg INA236_140_US: 140 microseconds (0x0)
+  *                  @arg INA236_204_US: 204 microseconds (0x1)
+  *                  @arg INA236_332_US: 332 microseconds (0x2)
+  *                  @arg INA236_588_US: 588 microseconds (0x3)
+  *                  @arg INA236_1100_US: 1100 microseconds (0x4)
+  *                  @arg INA236_2116_US: 2116 microseconds (0x5)
+  *                  @arg INA236_4156_US: 4156 microseconds (0x6)
+  *                  @arg INA236_8244_US: 8244 microseconds (0x7)
+  * @retval None
+  */
+void INA236_SetBusConvTime(INA236_HandleTypeDef *ina236, INA236_ConvTime_TypeDef convTime)
 {
-  double shuntVoltageLimit;
-  uint16_t alertValue;
+    uint16_t regValue;
 
-  shuntVoltageLimit = currentLimit * (ina236->shuntResistor);
-  alertValue = shuntVoltageLimit / (ina236->shuntAdcRange);
-  ina236writeRegister(ina236, INA236_ALERT_LIMIT_REGISTER, alertValue);
+    // Read the current CONFIGURATION register
+    regValue = INA236_ReadRegister(ina236, INA236_CONFIGURATION_REGISTER);
+
+    // Clear the VBUSCT bits using the mask (bits 6, 7 and 8)
+    regValue &= ~INA236_VBUSCT_Mask;
+
+    // Set the new VBUSCT by shifting it to its position (VBUSCT_Pos = 6)
+    // and protecting it with the mask
+    regValue |= (convTime << INA236_VBUSCT_Pos) & INA236_VBUSCT_Mask;
+
+    //Write the resulting value back to the register
+    INA236_WriteRegister(ina236, INA236_CONFIGURATION_REGISTER, regValue);
 }
-
-double ina236ReadShuntVoltage(Ina236_t *ina236)
+/**
+  * @brief  Configure the number of samples averaged for the measurements
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified INA236.
+  * @param  avg Selected sample averaging count to be set in the configuration register.
+  *             This parameter can be one of the following values:
+  *             @arg INA236_1_SAMPLE: 1 sample (0x0)
+  *             @arg INA236_4_SAMPLES: 4 samples (0x1)
+  *             @arg INA236_16_SAMPLES: 16 samples (0x2)
+  *             @arg INA236_64_SAMPLES: 64 samples (0x3)
+  *             @arg INA236_128_SAMPLES: 128 samples (0x4)
+  *             @arg INA236_256_SAMPLES: 256 samples (0x5)
+  *             @arg INA236_512_SAMPLES: 512 samples (0x6)
+  *             @arg INA236_1014_SAMPLES: 1024 samples (0x7)
+  * @retval None
+  */
+void INA236_SetAverage(INA236_HandleTypeDef *ina236, INA236_Avg_TypeDef avg)
 {
-	double result = ina236readRegister(ina236, INA236_SHUNT_VOLTAGE_REGISTER);
-	result = result * (ina236->shuntAdcRange) * (1000.0);
+    uint16_t regValue;
 
-	return result;
+    // Read the current CONFIGURATION register
+    regValue = INA236_ReadRegister(ina236, INA236_CONFIGURATION_REGISTER);
+
+    // Clear the AVG bits using the mask (bits 9, 10 and 11)
+    regValue &= ~INA236_AVG_Mask;
+
+    // Set the new AVG by shifting it to its position (AVG_Pos = 9) (FIXED)
+    // and protecting it with the mask
+    regValue |= (avg << INA236_AVG_Pos) & INA236_AVG_Mask;
+
+    // Write the resulting value back to the register
+    INA236_WriteRegister(ina236, INA236_CONFIGURATION_REGISTER, regValue);
 }
 
-double ina236ReadBusVoltage(Ina236_t *ina236)
+/**
+  * @brief  Configure the shunt voltage ADC full-scale range
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified INA236.
+  * @param  range Selected ADC input range. This parameter can be one of the following:
+  *             @arg INA236_ADC_RANGE_81_92MV: Range is ±81.92 mV (LSB = 2.5 uV)
+  *             @arg INA236_ADC_RANGE_20_48MV: Range is ±20.48 mV (LSB = 0.625 uV)
+  * @retval None
+  */
+void INA236_SetAdcRange(INA236_HandleTypeDef *ina236, INA236_AdcRange_TypeDef range)
 {
-	double result = ina236readRegister(ina236, INA236_BUS_VOLTAGE_REGISTER);
-	result = result * (1.6) * pow(10, -3);
+    uint16_t regValue;
 
-	return result;
+    // Read current register
+    regValue = INA236_ReadRegister(ina236, INA236_CONFIGURATION_REGISTER);
+
+    // Clear ADCRANGE bit (bit 12)
+    regValue &= ~INA236_ADCRANGE_Mask;
+
+    // Set the new range in bit 12
+    regValue |= (range << INA236_ADCRANGE_Pos) & INA236_ADCRANGE_Mask;
+
+    // Write back to register
+    INA236_WriteRegister(ina236, INA236_CONFIGURATION_REGISTER, regValue);
+    
+    // Update local struct parameters 
+    ina236->_adcRange = (_Bool)range;
+
+    // Update the Shunt ADC limit in Volts (V) for physical SI calculations
+    if (adcRange == INA236_ADC_RANGE20_48_MV)
+    {
+        ina236->_shuntAdcRange = 0.02048;   // ±20.48 mV
+        ina236->_resolution = 0.000000625;  // 625 nV/LSB 
+    }
+    else
+    {
+        ina236->_shuntAdcRange = 0.08192;   // ±81.92 mV
+        ina236->_resolution = 0.0000025;    // 2.5 uV/LSB
+    }
 }
 
-double ina236ReadCurrent(Ina236_t *ina236)
+/**
+  * @brief  Reset the INA236 device registers to their default factory values
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified INA236.
+  * @retval None
+  */
+void INA236_ResetDevice(INA236_HandleTypeDef *ina236)
 {
-  double rawCurrent = ina236readRegister(ina236, INA236_CURRENT_REGISTER);
-  double current = rawCurrent * (ina236->currentLsbMin) * (1000.0);
-  return current;
+    // Escribir directamente el bit de reset (bit 15 = 0x8000) en el registro de configuracion.
+    // El bit RST se limpia solo (self-clearing) inmediatamente despues de ejecutar el reset.
+    INA236_WriteRegister(ina236, INA236_CONFIGURATION_REGISTER, INA236_RST_Mask);
+    
+    // Esperar un breve retraso para asegurar que los circuitos internos del chip 
+    // y la comunicacion I2C se hayan estabilizado tras el reinicio.
+    HAL_Delay(2); 
+    
+    // Tras el reset, el chip vuelve a su rango de ADC predeterminado de +-81.92 mV.
+    ina236->_rangeAdc = INA236_ADC_RANGE_81_92MV;
 }
 
-double ina236ReadPower(Ina236_t *ina236)
+/**
+  * @brief  Retrieve the Manufacturer ID from the INA236 device
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified INA236.
+  * @return 16-bit Manufacturer ID (Expected value is 0x5449), or 0xFFFF if reading fails
+  */
+uint16_t INA236_GetManufacturerID(INA236_HandleTypeDef *ina236)
 {
-  double rawPower = ina236readRegister(ina236, INA236_POWER_REGISTER);
-  double power = 32.0 * rawPower * (ina236->currentLsbMin) * (1000.0);
-  return power;
+    uint16_t regValue;
+
+    // Read the Manufacturer ID register (Address: 0x3E)
+    regValue = INA236_ReadRegister(ina236, MANUFACTURER_ID_REGISTER);
+
+    return regValue;
 }
 
-_Bool ina236AlertFunctionFlag(Ina236_t *ina236)
+/**
+  * @brief  Retrieve the Device ID from the INA236 device
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified INA236.
+  * @return 16-bit Device ID (Expected value is 0xA080), or 0xFFFF if reading fails
+  */
+uint16_t INA236_GetDeviceID(INA236_HandleTypeDef ina236)
 {
-	uint16_t result = ina236readRegister(ina236, INA236_MASK_ENABLE_REGISTER);
-	_Bool isAlertFunctionFlagTrue = CHECK_BIT(result, 4);
-	return isAlertFunctionFlagTrue;
+    uint16_t regValue;
+
+    // Read the Manufacturer ID register (Address: 0x3F)
+    regValue = INA236_ReadRegister(ina236, MANUFACTURER_ID_REGISTER);
+
+    return regValue;
 }
 
-_Bool ina236DataReady(Ina236_t *ina236)
-{
-  _Bool isDataReady;
 
-  uint16_t conversionReady = ina236readRegister(ina236, INA236_MASK_ENABLE_REGISTER);
-  isDataReady = CHECK_BIT(conversionReady, 3);
-
-  return isDataReady;
-}

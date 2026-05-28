@@ -1,6 +1,5 @@
 /**
     *******************************************************************************************
-
   * @file           : INA236.h
   * @brief          : INA236 Library
     *******************************************************************************************
@@ -61,7 +60,7 @@
   * Rshunt < V_SENSE_MAX / I_MAX ....................................(4)
   * 
   *******************************************************************************************
-  */
+*/
 
 #ifndef INC_INA236_H_
 #define INC_INA236_H_
@@ -71,16 +70,16 @@
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 
 // Registers
-#define INA236_CONFIGURATION_REGISTER   0x00
-#define INA236_SHUNT_VOLTAGE_REGISTER   0x01
-#define INA236_BUS_VOLTAGE_REGISTER     0x02
-#define INA236_POWER_REGISTER           0x03
-#define INA236_CURRENT_REGISTER         0x04
-#define INA236_CALIBRATION_REGISTER     0x05
-#define INA236_MASK_ENABLE_REGISTER     0x06
-#define INA236_ALERT_LIMIT_REGISTER     0x07  // Contains the value used to compare to the register selected in the Mask/Enable Register to determine if a limit has been exceeded 
-#define MANUFACTURER_ID_REGISTER        0x3E  // Reset Value: 5449h
-#define DEVICE_ID_REGISTER              0x3F  // Reset Value: A080h
+#define INA236_CONFIGURATION_REGISTER   0x00  /* Reset Value = 4127h */
+#define INA236_SHUNT_VOLTAGE_REGISTER   0x01  /* Reset Value = 0000h */
+#define INA236_BUS_VOLTAGE_REGISTER     0x02  /* Reset Value = 0000h */
+#define INA236_POWER_REGISTER           0x03  /* Reset Value = 0000h */
+#define INA236_CURRENT_REGISTER         0x04  /* Reset Value = 0000h */
+#define INA236_CALIBRATION_REGISTER     0x05  /* Reset Value = 0000h */
+#define INA236_MASK_ENABLE_REGISTER     0x06  /* Reset Value = 0000h */
+#define INA236_ALERT_LIMIT_REGISTER     0x07  /* Reset Value = 0000h */
+#define MANUFACTURER_ID_REGISTER        0x3E  /* Reset Value = 5449h */  
+#define DEVICE_ID_REGISTER              0x3F  /* Reset Value = A080h */
 
 #define INA236_CONFIG_RESERVED          0x4000
 
@@ -98,57 +97,134 @@
 #define INA236_ALERT_POLARITY           0x0002 // Alert polarity bit sets the alert pin polarity. 0b = Normal (Active-low open drain). 1b = Inverted (active-high)
 #define INA236_ALERT_LATCH_ENABLE       0X0001 // When the Alert latch Enable bit is set to Latch mode, the Alert pin and AFF bit remains active following a fault until this register flag has been read. This bit must be set to use the I2C Alert Response function   
 
-/**
-  * Enables the selection of the shunt full scale input across IN+ and IN-
-  */
-typedef enum {
-  INA236_ADCRANGE_81DOT92_MILIVOLT    = 0x0000, // ADCRANGE = 0 (+-81.92mV). 2.5uV/LSB
-  INA236_ADCRANGE_20DOT48_MILIVOLT    = 0x1000  // ADCRANGE = 1 (+-20.48mV). 625nV/LSB      
-} AdcRange_t;
 
-typedef enum { 
-  INA236_1_SAMPLE                     = 0x0000,
-  INA236_4_SAMPLES                    = 0x0200,
-  INA236_16_SAMPLES                   = 0x0400,
-  INA236_64_SAMPLES                   = 0x0600,
-  INA236_128_SAMPLES                  = 0x0800,
-  INA236_256_SAMPLES                  = 0x0A00, 
-  INA236_512_SAMPLES                  = 0x0C00,
-  INA236_1024_SAMPLES                 = 0x0E00
-} Avg_t;
+/*******************  Bits definition for CONFIGURATION register  ******************/
+#define INA236_MODE_Pos                 (0U)
+#define INA236_MODE_Mask                (0x7U << INA236_MODE_Pos)
+#define INA236_MODE                     INA236_MODE_Mask
+#define INA236_MODE_0                   (0x1U << INA236_MODE_Pos)
+#define INA236_MODE_1                   (0x2U << INA236_MODE_Pos)
+#define INA236_MODE_2                   (0x4U << INA236_MODE_Pos)
 
-typedef enum {
-  INA236_VBUSCT_140_US                = 0x0000,
-  INA236_VBUSCT_204_US                = 0x0040,
-  INA236_VBUSCT_332_US                = 0x0080,
-  INA236_VBUSCT_588_US                = 0x00C0,
-  INA236_VBUSCT_1100_US               = 0x0100,
-  INA236_VBUSCT_2116_US               = 0x0140,
-  INA236_VBUSCT_4156_US               = 0x0180,
-  INA236_VBUSCT_8244_US               = 0x01C0
-} VbusConvertionTime_t;
+#define INA236_VSHCT_Pos                (3U)
+#define INA236_VSHCT_Mask               (0x7U << INA236_VSHCT_Pos)
+#define INA236_VSHCT                    INA236_VSHCT_Mask
+#define INA236_VSHCT_0                  (0x1U << INA236_VSHCT_Pos)
+#define INA236_VSHCT_1                  (0x2U << INA236_VSHCT_Pos)
+#define INA236_VSHCT_2                  (0x4U << INA236_VSHCT_Pos)
 
-typedef enum {
-  INA236_VSHCT_140_US                = 0x0000,
-  INA236_VSHCT_204_US                = 0x0008,
-  INA236_VSHCT_332_US                = 0x0010,
-  INA236_VSHCT_588_US                = 0x0018,
-  INA236_VSHCT_1100_US               = 0x0020,
-  INA236_VSHCT_2116_US               = 0x0028,
-  INA236_VSHCT_4156_US               = 0x0030,
-  INA236_VSHCT_8244_US               = 0x0038
-} ShuntConvertionTime_t;
+#define INA236_VBUSCT_Pos               (6U)
+#define INA236_VBUSCT_Mask              (0x7U << INA236_VBUSCT_Pos)
+#define INA236_VBUSCT                   INA236_VBUSCT_Mask
+#define INA236_VBUSCT_0                 (0x1U << INA236_VBUSCT_Pos)
+#define INA236_VBUSCT_1                 (0x2U << INA236_VBUSCT_Pos)
+#define INA236_VBUSCT_2                 (0x4U << INA236_VBUSCT_Pos)
 
-typedef enum {
-  INA236_SHUTDOWN_MODE               = 0x0000,
-  INA236_SHVOLT_TRIGGERED_ONE_SHOT   = 0x0001,
-  INA236_BUSVOLT_TRIGGERED_ONE_SHOT  = 0x0002,
-  INA236_SHUNTBUS_TRIGGERED_ONE_SHOT = 0X0003,
-  INA236_SHUNTDOWN                   = 0x0004,
-  INA236_CONTINUOUS_SHUNT_VOLTAGE    = 0x0005,
-  INA236_CONTINUOUS_BUS_VOLTAGE      = 0x0006,
-  INA236_CONTINUOUS_SHUNTBUS_VOLTAGE = 0x0007
-} ina236Mode_t;
+#define INA236_AVG_Pos                  (9U)
+#define INA236_AVG_Mask                 (0x7U << INA236_AVG_Pos)
+#define INA236_AVG                      INA236_L_Mask
+#define INA236_AVG_0                    (0x1U << INA236_AVG_Pos)
+#define INA236_AVG_1                    (0x2U << INA236_AVG_Pos)
+#define INA236_AVG_2                    (0x4U << INA236_AVG_Pos)
+
+#define INA236_ADCRANGE_Pos             (12U)
+#define INA236_ADCRANGE_Mask            (0x1U << INA236_ADCRANGE_Pos)
+#define INA236_ADCRANGE                 INA236_ADCRANGE_Mask
+
+#define INA236_RST_Pos                  (15U)
+#define INA236_RST_Mask                 (0x1U << INA236_RST_Pos)
+#define INA236_RST                      INA236_RST_Mask
+
+/*******************  Bits definition for MASK/ENABLE register  ******************/
+#define INA236_LEN_Pos                  (0U)
+#define INA236_LEN_Mask                 (0x1U << INA236_LEN_Pos)
+#define INA236_LEN                      INA236_LEN_Mask
+
+#define INA236_APOL_Pos                 (1U)
+#define INA236_APOL_Mask                (0x1U << INA236_APOL_Pos)
+#define INA236_APOL                     INA236_APOL_Mask
+
+#define INA236_OVF_Pos                  (2U)
+#define INA236_OVF_Mask                 (0x1U << INA236_OVF_Pos)
+#define INA236_OVF                      INA236_OVF_Mask
+
+#define INA236_CVRF_Pos                 (3U)
+#define INA236_CVRF_Mask                (0x1U << INA236_CVRF_Pos)
+#define INA236_CVRF                     INA236_CVRF_Mask
+
+#define INA236_AFF_Pos                  (4U)
+#define INA236_AFF_Mask                 (0x1U << INA236_AFF_Pos)
+#define INA236_AFF                      INA236_AFF_Mask
+
+#define INA236_MEMERROR_Pos             (5U)
+#define INA236_MEMERROR_Mask            (0x1U << INA236_MEMERROR_Pos)
+#define INA236_MEMERROR                 INA236_MEMERROR_Mask
+
+#define INA236_CNVR_Pos                 (10U)
+#define INA236_CNVR_Mask                (0x1U << INA236_CNVR_Pos)
+#define INA26_CNVR                      INA236_CNVR_Mask
+
+#define INA236_POL_Pos                  (11U)
+#define INA236_POL_Mask                 (0x1U << INA236_POL_Pos)
+#define INA236_POL                      INA236_POL_Mask
+
+#define INA236_BUL_Pos                  (12U)
+#define INA236_BUL_Mask                 (0x1U << INA236_BUL_Pos)
+#define INA236_BUL                      INA236_BUL_Mask
+
+#define INA236_BOL_Pos                  (13U)
+#define INA236_BOL_Mask                 (0x1U << INA236_BOL_Pos)
+#define INA236_BOL                      INA236_BOL_Mask
+
+#define INA236_SUL_Pos                  (14U)
+#define INA236_SUL_Mask                 (0x1U << INA236_SUL_Pos)
+#define INA236_SUL                      INA236_SUL_Mask
+
+#define INA236_SOL_Pos                  (15U)
+#define INA236_SOL_Mask                 (0x1U << INA236_SOL_Pos)
+#define INA236_SOL                      INA236_SOL_Mask
+
+typedef enum 
+{
+    INA236_SHUTDOWN                     = 0x0U,
+    INA236_SHUNT_VOLTAGE_ONE_SHOT       = 0x1U,
+    INA236_BUS_VOLTAGE_ONE_SHOT         = 0x2U,
+    INA236_SHUNT_BUS_VOLTAGE_ONE_SHOT   = 0x3U,
+    INA236_CONTINUOUS_SHUNT_VOLTAGE     = 0x5U,
+    INA236_CONTINUOUS_BUS_VOLTAGE       = 0x6U,
+    INA236_CONTINUOUS_SHUNT_BUS_VOLTAGE = 0x7U
+} INA236_Mode_TypeDef;
+
+typedef enum 
+{
+    INA236_140_US                       = 0x0U,
+    INA236_204_US                       = 0x1U,
+    INA236_332_US                       = 0x2U,
+    INA236_588_US                       = 0x3U,
+    INA236_1100_US                      = 0x4U,
+    INA236_2116_US                      = 0x5U,
+    INA236_4156_US                      = 0x6U,
+    INA236_8244_US                      = 0x7U
+} INA236_ConvTime_TypeDef;
+
+typedef enum
+{
+    INA236_1_SAMPLE                     = 0x0U,
+    INA236_4_SAMPLES                    = 0x1U,
+    INA236_16_SAMPLES                   = 0x2U,
+    INA236_64_SAMPLES                   = 0x3U,
+    INA236_128_SAMPLES                  = 0x4U,
+    INA236_256_SAMPLES                  = 0x5U,
+    INA236_512_SAMPLES                  = 0x6U,
+    INA236_1014_SAMPLES                 = 0x7U
+} INA236_Avg_TypeDef;
+
+typedef enum
+{
+    INA236_ADC_RANGE_81_92_MV           = 0x0U,
+    INA236_ADC_RANGE20_48_MV            = 0x1U
+} INA236_AdcRange_TypeDef;
+
 
 typedef enum {
   SOL = 1, // Shunt Over Limit
@@ -161,44 +237,47 @@ typedef enum {
 
 typedef struct 
 {
-  I2C_HandleTypeDef *hi2c;
-  uint8_t            devAddress;
-  uint8_t            rangeAdc;
-  double             shuntResistor;
-  double             maximumCurrent;
-  double 			 shuntAdcRange;
-  double             currentLsbMin;
+  I2C_HandleTypeDef  *hi2c;
+  uint8_t            _devAddress;
+  _Bool              _adcRange;
+  double             _resolution;
+  double             _shuntResistor;
+  double             _maximumCurrent;
+  double 			 _shuntAdcRange;
+  double             _currentLsbMin;
   AlertType_t        alertType;
-} Ina236_t;
+} INA236_HandleTypeDef;
 
 
 
-void ina236writeRegister(Ina236_t *ina236, uint8_t registerAddress, uint16_t value);
+HAL_StatusTypeDef INA236_WriteRegister(INA236_HandleTypeDef *ina236, uint8_t registerAddress, uint16_t value);
 
-uint16_t ina236readRegister(Ina236_t *ina236, uint8_t registerAddress);
+uint16_t INA236_ReadRegister(INA236_HandleTypeDef *ina236, uint8_t registerAddress);
 
-uint8_t ina236Init(Ina236_t *ina236, I2C_HandleTypeDef *i2c, uint8_t devAddress, AdcRange_t adcRange, Avg_t samples, VbusConvertionTime_t busConvertionTime, ShuntConvertionTime_t shuntConvertionTime, ina236Mode_t mode);
+HAL_StatusTypeDef INA236_Init(INA236_HandleTypeDef *ina236, I2C_HandleTypeDef *i2c, uint8_t devAddress);
 
 uint8_t ina236DefaulInit(Ina236_t *ina236, I2C_HandleTypeDef *i2c, uint8_t devAddress);
 
-void ina236SetCalibration(Ina236_t *ina236, double rShuntValue, int maxCurrent);
+void INA236_SetCalibration(INA236_HandleTypeDef *ina236, double rShuntValue, int maxCurrent);
 
-uint8_t ina236SetMaskRegister(Ina236_t *ina236, AlertType_t alertType); 
 
-void ina236ResetMaskRegister(Ina236_t *ina236);
 
-void ina236SetCurrentAlertLimit(Ina236_t *ina236, double currentLimit);
+void INA236_SetMode(INA236_HandleTypeDef *ina236, INA236_Mode_TypeDef mode);
 
-double ina236ReadShuntVoltage(Ina236_t *ina236);
+void INA236_SetShuntConvTime(INA236_HandleTypeDef *ina236, INA236_ConvTime_TypeDef convTime);
 
-double ina236ReadBusVoltage(Ina236_t *ina236);
+void INA236_SetBusConvTime(INA236_HandleTypeDef *ina236, INA236_ConvTime_TypeDef convTime);
 
-double ina236ReadCurrent(Ina236_t *ina236);
+void INA236_SetAverage(INA236_HandleTypeDef *ina236, INA236_Avg_TypeDef avg);
 
-double ina236ReadPower(Ina236_t *ina236);
+void INA236_SetAdcRange(INA236_HandleTypeDef *ina236, INA236_AdcRange_TypeDef range);
 
-_Bool ina236AlertFunctionFlag(Ina236_t *ina236);
+void INA236_ResetDevice(INA236_HandleTypeDef *ina236);
 
-_Bool ina236DataReady(Ina236_t *ina236);
+
+void INA236_GetManufacturerID(INA236_HandleTypeDef *ina236);
+
+uint16_t INA236_GetDeviceID(INA236_HandleTypeDef ina236);
+
 
 #endif
