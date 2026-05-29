@@ -568,3 +568,48 @@ void TMP117_Init(TMP117_HandleTypeDef *tmp117, I2C_HandleTypeDef *i2c)
 }
 
 
+/**
+  * @brief  Check if is the conversion is complete and the temperature
+  *         register can be read (DATAREADY bit is set).
+  * @note   Data Ready Flag bit clears under the following conditions:
+  *         1) Reading the Configuration register. 
+  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure.
+  * @retval 1: New conversion is ready and data is available
+  *         0: Conversion is not ready or read error occurred
+  */
+_Bool TMP117_IsConversionReady(TMP117_HandleTypeDef *tmp117)
+{
+    // Read the Configuration Register (Address: 0x01)
+    uint16_t regValue = TMP117_ReadRegister(tmp117, TMP117_CONFIGURATION_REG);
+
+    // Mask the value to isolate bit 13 (DATAREADY_Mask)
+    // If the bit is set, (regValue & INA236_CVRF) will be 0x2000 (which is != 0)
+    if ((regValue & TMP117_DATAREADY) != 0U)
+    {
+        return 1; 
+    }
+
+    return 0;
+}
+
+
+/**
+  * @brief  Reset the TMP117 device registers to their default factory values
+  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified INA236.
+  * @retval None
+  */
+void TMP117_ResetDevice(TMP117_HandleTypeDef *tmp117)
+{
+    // Escribir directamente el bit de reset (bit 15 = 0x8000) en el registro de configuracion.
+    // El bit RST se limpia solo (self-clearing) inmediatamente despues de ejecutar el reset.
+    INA236_WriteRegister(ina236, INA236_CONFIGURATION_REGISTER, INA236_RST_Mask);
+    
+    // Esperar un breve retraso para asegurar que los circuitos internos del chip 
+    // y la comunicacion I2C se hayan estabilizado tras el reinicio.
+    HAL_Delay(2); 
+    
+    // Tras el reset, el chip vuelve a su rango de ADC predeterminado de +-81.92 mV.
+    ina236->_adcRange = INA236_ADC_RANGE_81_92_MV;
+}
+

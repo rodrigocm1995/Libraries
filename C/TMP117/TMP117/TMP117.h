@@ -63,6 +63,50 @@
 #define TMP117_DEVICE_ID_REG                    0x0F
 #define TMP117_EEPROM_EUN                       0x8000
 
+/*******************  Bits definition for CONFIGURATION register  ******************/
+#define TMP117_SOFTRESET_Pos                    (1U)
+#define TMP117_SOFTRESET_Mask                   (0x1U << TMP117_SOFTRESET_Pos)
+#define TMP117_SOFTRESET                        TMP117_SOFTRESET_Mask
+
+#define TMP117_DRALERT_Pos                      (2U)
+#define TMP117_DRALERT_Mask                     (0x1U << TMP117_DRALERT_Pos)
+#define TMP117_DRALERT                          TMP117_DRALERT_Mask
+
+#define TMP117_POL_Pos                          (3U)
+#define TMP117_POL_Mask                         (0x1U << TMP117_POL_Pos)
+#define TMP117_POL                              TMP117_POL_Mask
+
+#define TMP117_TnA_Pos                          (4U)
+#define TMP117_TnA_Mask                         (0x1U << TMP117_TNA_Pos)
+#define TMP117_TnA                              TMP117_TnA_Mask
+
+#define TMP117_AVG_Pos                          (5U)
+#define TMP117_AVG_Mask                         (0x3U << TMP117_AVG_Pos)
+#define TMP117_AVG                              TMP117_AVG_Mask
+
+#define TMP117_CONV_Pos                         (7U)
+#define TMP117_CONV_Mask                        (0x7U << TMP117_CONV_Pos)
+#define TMP117_CONV                             TMP117_CONV_Mask
+
+#define TMP117_MOD_Pos                          (10U)
+#define TMP117_MOD_Mask                         (0x3U << TMP117_MOD_Pos)
+#define TMP117_MOD                              TMP117_MOD_Mask
+
+#define TMP117_EEPROMBUSY_Pos                   (12U)
+#define TMP117_EEPROMBUSY_Mask                  (0x1U << TMP117_EEPROMBUSY_Pos)
+#define TMP117_EEPROMBUSY                       TMP117_EEPROMBUSY_Mask
+
+#define TMP117_DATAREADY_Pos                    (13U)
+#define TMP117_DATAREADY_Mask                   (0x1U << TMP117_DATAREADY_Pos)
+#define TMP117_DATAREADY                        TMP117_DATAREADY_Mask
+
+#define TMP117_LOWALERT_Pos                     (14U)
+#define TMP117_LOWALERT_Mask                    (0x1U << TMP117_LOWALERT_Pos)
+#define TMP117_LOWALERT                         TMP117_LOWALERT_Mask
+
+#define TMP117_HIGHALERT_Pos                    (15U)
+#define TMP117_HIGHALERT_Mask                   (0x1U << TMP117_HIGHALERT_Pos)
+#define TMP117_HIGHALERT                        TMP117_HIGHALERT_Mask
 
 
 // Masks
@@ -137,6 +181,10 @@ typedef struct
 HAL_StatusTypeDef TMP117_WriteRegister(TMP117_HandleTypeDef *tmp117, uint8_t registerAddress, uint16_t value);
 
 uint16_t TMP117_ReadRegister(TMP117_HandleTypeDef *tmp117, uint8_t registerAddress);
+
+
+_Bool TMP117_IsConversionReady(TMP117_HandleTypeDef *tmp117);
+
 
 
 int16_t TMP117_GetTemperature(TMP117_HandleTypeDef *tmp117);
