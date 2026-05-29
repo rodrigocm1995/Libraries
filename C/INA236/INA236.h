@@ -270,9 +270,9 @@ typedef struct
   double             _resolution;
   double             _shuntResistor;
   double             _maximumCurrent;
-  double 			 _shuntAdcRange;
+  double 			       _shuntAdcRange;
   double             _currentLsbMin;
-  double            _currentLsb;
+  double             _currentLsb;
   AlertType_t        alertType;
 } INA236_HandleTypeDef;
 
@@ -305,7 +305,7 @@ void INA236_SetShuntUnderLimit(INA236_HandleTypeDef *ina236, INA236_ShuntUnderLi
 void INA236_SetShuntOverLimit(INA236_HandleTypeDef *ina236, INA236_ShuntOverLimitAlert_TypeDef solAlert);
 
 /* Diagnostic Readings */
-uint8_t INA236_IsConversionReady(INA236_HandleTypeDef *ina236);
+_Bool INA236_IsConversionReady(INA236_HandleTypeDef *ina236);
 uint8_t INA236_IsMathOverflowReady(INA236_HandleTypeDef *ina236);
 uint16_t INA236_GetManufacturerID(INA236_HandleTypeDef *ina236);
 uint16_t INA236_GetDeviceID(INA236_HandleTypeDef *ina236);

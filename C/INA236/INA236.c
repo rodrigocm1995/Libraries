@@ -422,7 +422,7 @@ uint8_t INA236_IsMathOverflowReady(INA236_HandleTypeDef *ina236)
   * @retval 1: New conversion is ready and data is available
   *         0: Conversion is not ready or read error occurred
   */
-uint8_t INA236_IsConversionReady(INA236_HandleTypeDef *ina236)
+_Bool INA236_IsConversionReady(INA236_HandleTypeDef *ina236)
 {
     // Read the Mask/Enable Register (Address: 0x06)
     uint16_t regValue = INA236_ReadRegister(ina236, INA236_MASK_ENABLE_REGISTER);
@@ -725,7 +725,7 @@ double INA236_GetBusVoltage(INA236_HandleTypeDef *ina236)
   * @param  ina236 Pointer to a INA236_HandleTypeDef structure.
   * @return Load current in Amperes (A)
   */
-double INA236_GetCurrent(INA236_HandleTypeDef *ina236)
+double INA236_GetCurrent_A(INA236_HandleTypeDef *ina236)
 {
     uint16_t regValue = INA236_ReadRegister(ina236, INA236_CURRENT_REGISTER);
     if (regValue == 0xFFFF) return 0.0;
