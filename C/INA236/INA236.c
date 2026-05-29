@@ -613,7 +613,7 @@ void INA236_SetShuntOverLimit(INA236_HandleTypeDef *ina236, INA236_ShuntOverLimi
 /** @brief  Retrieve the configured alert pin polarity
   * @param  ina236 Pointer to a INA236_HandleTypeDef structure.
   * @return Configured alert polarity (INA236_ACTIVE_LOW or INA236_ACTIVE_HIGH)
-  */
+  */    
 INA236_AlertPol_TypeDef INA236_GetAlertPolarity(INA236_HandleTypeDef *ina236)
 {
     // Read the Mask/Enable Register (Address: 0x06)

@@ -253,15 +253,6 @@ typedef enum
     INA236_SHUNT_OVER_LIMIT_ALERT_ENABLE    = 0x1U  
 } INA236_ShuntOverLimitAlert_TypeDef;
 
-typedef enum {
-  SOL = 1, // Shunt Over Limit
-  SUL = 2, // Shunt Under Limit
-  BOL = 3, // Bus Over limit
-  BUL = 4, // Bus Under Limit
-  POL = 5,  // Power Over Limit
-  CNVR = 6 // Conversion Ready
-} AlertType_t;
-
 typedef struct 
 {
   I2C_HandleTypeDef  *hi2c;
