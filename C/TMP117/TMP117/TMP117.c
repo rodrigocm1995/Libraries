@@ -312,76 +312,11 @@ void TMP117_SetAverage(TMP117_HandleTypeDef *tmp117, TMP117_Average_HandleTypeDe
 	TMP117_WriteRegister(tmp117, TMP117_CONFIGURATION_REG, result);
 }
 
-/**
-  *@brief Allows the user to set the therm/alert mode bit of the CONFIGURATION register.
-  * The built-in therm and alert functions of the TMP117 can alert the user if the temperature
-  * has crossed a certain temperature limit or if the device is within a certain temperature range.
-  * At the end of every conversion, including averaging, the device compares the converted
-  * temperature result to the values stored in the LOW LIMIT register and HIGH LIMIT register. The
-  * device then either sets or clears the corresponding status flags in the CONFIGURATION register.
-  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@param tnA:
-  *(+) TMP117_THERM_MODE: The device compares the conversion result at the end of every conversion
-  *		with the values in the LOW LIMIT register and HIGH LIMIT register and sets the HIGH_Alert
-  *		status flag in the CONFIGURATION register if the temperature exceeds the value in the HIGH
-  *		LIMIT register. When set, the device clears the HIGH_Alerts status flag if the conversion
-  *		result goes below the value in the low limit register.
-  *		In this mode, the device asserts the ALERT pin if the HIGH_Alert status flag is set and deasserts
-  *		the ALERT pin when the HIGH_Alert status flag is cleared.
-  *(+) TMP117_ALERT_MODE: The device compares the conversion result at the end of every conversion
-  *		with the values in the LOW LIMIT register and HIGH LIMIT register. If the temperature result
-  *		exceeds the value in the HIGH limit register, the HIGH_Alert status flag in the CONFIGURATION
-  *		register is set. On the other hand, if the temperature result is lower than the value in the
-  *		LOW LIMIR register, the LOW_Alert status flag in the CONFIGURATION register is set.
-  *		The device asserts the ALERT pin in this mode when either the HIGH_Alert or the LOW_Alert
-  *		status flag is set.
-  *@retval	none
-*/
-void TMP117_SetThermAlertMode(TMP117_HandleTypeDef *tmp117, TMP117_ThermAlertMode_HandleTypeDef tnA)
-{
-	uint16_t result = TMP117_GetConfiguration(tmp117);
-	result = (result & TMP117_THERM_ALERT_MASK) | tnA;
-	TMP117_WriteRegister(tmp117, TMP117_CONFIGURATION_REG, result);
-}
 
-/**
-  *@brief Allows the user to set the ALERT pin polarity bit of the CONFIGURATION register.
-  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@param polarity:
-  *(+) TMP117_ALERT_ACTIVE_HIGH
-  *(+) TMP117_ALERT_ACTIVE_LOW
-  *@retval	none
-*/
-void TMP117_SetAlertPinPolarity(TMP117_HandleTypeDef *tmp117, TMP117_AlertPinPolarity_HandleTypeDef polarity)
-{
-	uint16_t result = TMP117_GetConfiguration(tmp117);
-	result = (result & TMP117_ALERT_PIN_POL_MASK) | polarity;
-	TMP117_WriteRegister(tmp117, TMP117_CONFIGURATION_REG, result);
-}
 
-/**
-  *@brief Allows the user to set the ALERT pin select bit of the CONFIGURATION register.
-  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@param select:
-  *(+) TMP117_ALERT_FOR_DATA_READY_FLAG: ALERT pin reflects the status of the data ready flag
-  *(+) TMP117_ALERT_FOR_ALERT_FLAGS: ALERT pin reflects the status of the alert flags
-  *@retval	none
-*/
-void TMP117_SetAlertPinSelect(TMP117_HandleTypeDef *tmp117, TMP117_AlertPinSelect_HandleTypeDef select)
-{
-	uint16_t result = TMP117_GetConfiguration(tmp117);
-	result = (result & TMP117_ALERT_PIN_SELECT_MASK) | select;
-	TMP117_WriteRegister(tmp117, TMP117_CONFIGURATION_REG, result);
-}
 
-void TMP117_SetSoftReset(TMP117_HandleTypeDef *tmp117)
-{
-	uint16_t result = TMP117_GetConfiguration(tmp117);
-	result = (result & TMP117_SOFT_RESET_MASK) | 0x0002;
-}
+
+
 
 /**
   * @brief  Set the High Limit Temperature (in °C) in the HIGH LIMIT register
@@ -592,24 +527,135 @@ _Bool TMP117_IsConversionReady(TMP117_HandleTypeDef *tmp117)
     return 0;
 }
 
-
 /**
   * @brief  Reset the TMP117 device registers to their default factory values
+  * @note   This function writes the soft reset bit (bit 15) directly to the 
+  *         Configuration Register (0x01). The RST bit is self-clearing once 
+  *         the reset is executed in the silicon.
   * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
-  *                the configuration and driver state for the specified INA236.
+  *                the configuration and driver state for the specified TMP117.
   * @retval None
   */
 void TMP117_ResetDevice(TMP117_HandleTypeDef *tmp117)
 {
-    // Escribir directamente el bit de reset (bit 15 = 0x8000) en el registro de configuracion.
-    // El bit RST se limpia solo (self-clearing) inmediatamente despues de ejecutar el reset.
-    INA236_WriteRegister(ina236, INA236_CONFIGURATION_REGISTER, INA236_RST_Mask);
+    // Write the reset bit (bit 15 = 0x8000) directly to the configuration register.
+    TMP117_WriteRegister(ina236, TMP117_CONFIGURATION_REG, TMP117_SOFTRESET);
     
-    // Esperar un breve retraso para asegurar que los circuitos internos del chip 
-    // y la comunicacion I2C se hayan estabilizado tras el reinicio.
-    HAL_Delay(2); 
-    
-    // Tras el reset, el chip vuelve a su rango de ADC predeterminado de +-81.92 mV.
-    ina236->_adcRange = INA236_ADC_RANGE_81_92_MV;
+    // Wait for a brief delay to ensure that the chip's internal circuits
+    // and I2C communication have stabilized after the reset.
+    HAL_Delay(2);
 }
 
+/**
+  * @brief  Configure the ALERT pin function on the TMP117 sensor (Alert flag vs Data Ready flag)
+  * @note   This function modifies the DR/Alert bit (bit 2) of the Configuration Register (0x01).
+  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified TMP117.
+  * @param  pinFunction Selected alert pin function mode.
+  *                     This parameter can be one of the following values:
+  *                     @arg TMP117_ALERT_FOR_ALERT_FLAGS: ALERT pin functions as an alert flag for temperature limits.
+  *                     @arg TMP117_ALERT_FOR_DATA_READY_FLAG: ALERT pin functions as a Data Ready flag.
+  * @retval None
+  */
+void TMP117_SetAlertPinFunction(TMP117_HandleTypeDef *tmp117, TMP117_DRALERT_TypeDef pinFunction)
+{
+	uint16_t regValue = TMP117_ReadRegister(tmp117, TMP117_CONFIGURATION_REG);
+
+    // Clear the TMP117_DRALERT bit using the mask (bit 2)
+    regValue &= ~TMP117_DRALERT_Mask;
+
+    // Set the new DRALERT by shifting it to its position (DRALERT_Pos = 2)
+    // and protecting it with the mask
+    regValue |= (pinFunction << TMP117_DRALERT_Pos) & TMP117_DRALERT_Mask;
+
+    //Write the resulting value back to the register
+	TMP117_WriteRegister(tmp117, TMP117_CONFIGURATION_REG, result);
+}
+
+/**
+  * @brief  Configure the active polarity of the physical ALERT pin on the TMP117 sensor
+  * @note   This function modifies the POL bit (bit 3) of the Configuration Register (0x01).
+  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified TMP117.
+  * @param  polarity Selected alert pin polarity.
+  *                  This parameter can be one of the following values:
+  *                  @arg TMP117_ALERT_ACTIVE_HIGH: Alert active state is high (voltage is logic high)
+  *                  @arg TMP117_ALERT_ACTIVE_LOW: Alert active state is low (voltage is logic low)
+  * @retval None
+  */
+void TMP117_SetAlertPinPolarity(TMP117_HandleTypeDef *tmp117, TMP117_AlertPinPol_TypeDef polarity)
+{
+    // Read the current CONFIGURATION register
+    uint16_t regValue = TMP117_ReadRegister(tmp117, TMP117_CONFIGURATION_REG);
+
+    // Clear the POL bit using the mask (bit 3)
+    regValue &= ~TMP117_POL_Mask;
+
+    // Set the new mode by shifting it to its position (POL_Pos = 3)
+    // and protecting it with the mask
+    regValue |= (polarity << TMP117_POL_Pos) & TMP117_POL_Mask;
+
+    //Write the resulting value back to the register
+    TMP117_WriteRegister(tmp117, TMP117_CONFIGURATION_REG, regValue);
+}
+
+/**
+  * @brief  Configure the Therm/Alert mode on the TMP117 sensor
+  * @details The built-in therm and alert functions of the TMP117 alert the user if the temperature
+  *          crosses a certain temperature limit or if the device is within a certain temperature range.
+  *          At the end of every conversion (including averaging), the device compares the converted
+  *          temperature result to the values stored in the LOW LIMIT and HIGH LIMIT registers, setting
+  *          or clearing the corresponding status flags in the CONFIGURATION register.
+  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified TMP117.
+  * @param  tnA Selected mode of operation.
+  *             This parameter can be one of the following values:
+  *             @arg TMP117_THERM_MODE: Thermostat mode. The ALERT pin asserts when the temperature
+  *                  exceeds the HIGH LIMIT and deasserts only when it falls below the LOW LIMIT.
+  *             @arg TMP117_ALERT_MODE: Alert mode. The ALERT pin asserts when the temperature
+  *                  exceeds the HIGH LIMIT or falls below the LOW LIMIT.
+  * @retval None
+  */
+void TMP117_SetThermAlertMode(TMP117_HandleTypeDef *tmp117, TMP117_ThermAlertMode_TypeDef tnA)
+{
+    // Read the current CONFIGURATION register
+    uint16_t regValue = TMP117_ReadRegister(tmp117, TMP117_CONFIGURATION_REG);
+
+    // Clear the TnA bit using the mask (bit 4)
+    regValue &= ~TMP117_TnA_Mask;
+
+    // Set the new mode by shifting it to its position (TnA_Pos = 4)
+    // and protecting it with the mask
+    regValue |= (polarity << TMP117_TnA_Pos) & TMP117_TnA_Mask;
+
+    //Write the resulting value back to the register
+    TMP117_WriteRegister(tmp117, TMP117_CONFIGURATION_REG, regValue);
+}
+
+
+/**
+  * @brief  Configure the number of conversion averages for the TMP117 sensor
+  * @note   This function modifies the AVG bits (bits 5 and 6) of the Configuration Register (0x01).
+  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified TMP117.
+  * @param  avg Selected averaging mode.
+  *             This parameter can be one of the following values:
+  *             @arg TMP117_NO_SAMPLES: No averaging (1 conversion)
+  *             @arg TMP117_8_SAMPLES: 8 conversions averaged
+  *             @arg TMP117_32_SAMPLES: 32 conversions averaged
+  *             @arg TMP117_64_SAMPLES: 64 conversions averaged
+  * @retval None
+  */
+void TMP117_SetAverage(TMP117_HandleTypeDef *tmp117, TMP117_Avg_TypeDef avg)
+{
+    // Read the current CONFIGURATION register (Address: 0x01)
+    uint16_t regValue = TMP117_ReadRegister(tmp117, TMP117_CONFIGURATION_REG);
+    // Clear the AVG bits using the mask (bits 5 and 6)
+    regValue &= ~TMP117_AVG_Mask;
+    // Set the new AVG by shifting it to its position (AVG_Pos = 5)
+    // and protecting it with the mask
+    regValue |= (avg << TMP117_AVG_Pos) & TMP117_AVG_Mask;
+    // Write the resulting value back to the register
+    // (Nota: Corregido INA236_WriteRegister por TMP117_WriteRegister)
+    TMP117_WriteRegister(tmp117, TMP117_CONFIGURATION_REG, regValue);
+}

@@ -109,16 +109,6 @@
 #define TMP117_HIGHALERT                        TMP117_HIGHALERT_Mask
 
 
-// Masks
-#define TMP117_MODE_MASK						0xF3FF
-#define TMP117_AVERAGE_MASK						0xFF9F
-#define TMP117_THERM_ALERT_MASK					0xFFEF
-#define TMP117_ALERT_PIN_POL_MASK				0xFFF7
-#define TMP117_ALERT_PIN_SELECT_MASK			0xFFFB
-#define TMP117_SOFT_RESET_MASK					0xFFFD
-#define TMP117_CONV_CYCLE_MASK					0xFC7F
-#define TMP117_LOCK_UNLOCK_EEPROM_MASK			0x7FFF
-
 typedef enum
 {
   TMP117_CONTINUOUS_MODE                   		= 0x0000,
@@ -140,29 +130,29 @@ typedef enum
 
 typedef enum
 {
-  TMP117_NO_AVERAGING                         	= 0x0000,
-  TMP117_AVG_8_CONV								= 0x0020,
-  TMP117_AVG_32_CONV	                    	= 0x0040,
-  TMP117_AVG_64_CONV	                     	= 0x0060,
-} TMP117_Average_HandleTypeDef;
+  TMP117_NO_SAMPLES                         	= 0x0U,
+  TMP117_8_SAMPLES								= 0x1U,
+  TMP117_32_SAMPLES	                    	    = 0x2U,
+  TMP117_64_SAMPLES	                     	    = 0x3U,
+} TMP117_Avg_TypeDef;
 
 typedef enum
 {
-  TMP117_THERM_MODE                             = 0x0010,
-  TMP117_ALERT_MODE                             = 0x0000,
-} TMP117_ThermAlertMode_HandleTypeDef;
+  TMP117_THERM_MODE                             = 0x1U,
+  TMP117_ALERT_MODE                             = 0x0U,
+} TMP117_ThermAlertMode_TypeDef;
 
 typedef enum
 {
-  TMP117_ALERT_ACTIVE_HIGH                      = 0x0008,
-  TMP117_ALERT_ACTIVE_LOW                       = 0x0000,
-} TMP117_AlertPinPolarity_HandleTypeDef;
+  TMP117_ALERT_ACTIVE_HIGH                      = 0x0U,
+  TMP117_ALERT_ACTIVE_LOW                       = 0x1U,
+} TMP117_AlertPinPol_TypeDef;
 
 typedef enum
 {
-  TMP117_ALERT_FOR_DATA_READY_FLAG              = 0x0004,
-  TMP117_ALERT_FOR_ALERT_FLAGS                  = 0x0000,
-}TMP117_AlertPinSelect_HandleTypeDef;
+  TMP117_ALERT_FOR_DATA_READY_FLAG              = 0x1U,
+  TMP117_ALERT_FOR_ALERT_FLAGS                  = 0x0U,
+}TMP117_DRALERT_TypeDef;
 
 
 typedef enum
@@ -185,15 +175,6 @@ uint16_t TMP117_ReadRegister(TMP117_HandleTypeDef *tmp117, uint8_t registerAddre
 
 _Bool TMP117_IsConversionReady(TMP117_HandleTypeDef *tmp117);
 
-
-
-int16_t TMP117_GetTemperature(TMP117_HandleTypeDef *tmp117);
-
-uint16_t TMP117_GetConfiguration(TMP117_HandleTypeDef *tmp117);
-
-uint16_t TMP117_GetTempHighLimit(TMP117_HandleTypeDef *tmp117);
-
-uint16_t TMP117_GetTempLowLimit(TMP117_HandleTypeDef *tmp117);
 
 uint16_t TMP117_GetDeviceId(TMP117_HandleTypeDef *tmp117);
 
