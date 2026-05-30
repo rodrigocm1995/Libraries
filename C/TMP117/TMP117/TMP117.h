@@ -118,15 +118,15 @@ typedef enum
 
 typedef enum
 {
-  TMP117_CONVERSION_TYPE_0                      = 0x0000,
-  TMP117_CONVERSION_TYPE_1                      = 0x0080,
-  TMP117_CONVERSION_TYPE_2                      = 0x0100,
-  TMP117_CONVERSION_TYPE_3                      = 0x0180,
-  TMP117_CONVERSION_TYPE_4                      = 0x0200,
-  TMP117_CONVERSION_TYPE_5                      = 0x0280,
-  TMP117_CONVERSION_TYPE_6                      = 0x0300,
-  TMP117_CONVERSION_TYPE_7                      = 0x0380,
-}TMP117_ConversionCycle_HandleTypeDef;
+  TMP117_CONV_15_5_MS                           = 0x0U,
+  TMP117_CONV_125_MS                            = 0x1U,
+  TMP117_CONV_250_MS                            = 0x2U,
+  TMP117_CONV_500_MS                            = 0x3U,
+  TMP117_CONV_1_S                               = 0x4U,
+  TMP117_CONV_4_S                               = 0x5U,
+  TMP117_CONV_8_S                               = 0x6U,
+  TMP117_CONV_16_S                              = 0x7U,
+} TMP117_ConvTime_TypeDef;
 
 typedef enum
 {
@@ -161,11 +161,12 @@ typedef enum
 	TMP117_UNLOCK_EEPROM						= 0x8000,
 }TMP117_LockUnlock_HandleTypeDef;
 
-typedef struct
-{
-  I2C_HandleTypeDef         *hi2c;
-  uint8_t                   devAddress;
-}TMP117_HandleTypeDef;
+    typedef struct
+    {
+    I2C_HandleTypeDef         *hi2c;
+    uint8_t                   _devAddress;
+    uint8_t                  _samples;
+    }TMP117_HandleTypeDef;
 
 
 HAL_StatusTypeDef TMP117_WriteRegister(TMP117_HandleTypeDef *tmp117, uint8_t registerAddress, uint16_t value);

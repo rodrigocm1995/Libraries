@@ -1,122 +1,124 @@
 #include "main.h"
 #include "math.h" // Functions that operate on floating point numbers are in math.h
-#include "stdlib.h" // Functions that operate on integers are in stdlib.h
+#include <stdio.h>
 #include "TMP117.h"
 
-volatile uint16_t value;
-volatile _Bool valueFlag;
-
-
 /**
-  * @brief  Write an amount of data to the sensor in blocking mode to a specific memory address
-  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
-  *                the configuration information for connecting to the sensor.
-  * @param  registerAddres
-  * @param  MemAddress  sensor's internal memory address
-  * @param  MemAddSize Size of internal memory address
-  * @param  value Data to be sent
-  * @retval HAL_status
+  * @brief  Write a 16-bit value to a specific register of the TMP117 device
+  * @param  ina236 Pointer to a TMP117_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified TMP117.
+  * @param  registerAddress Internal register address of the INA236 to write to
+  * @param  value The 16-bit data word to be written into the target register
+  * @retval HAL_OK: Write operation completed successfully
+  * @retval HAL_ERROR: Device is not ready or write operation failed
   */
-HAL_StatusTypeDef TMP117_WriteRegister(TMP117_HandleTypeDef *tmp117, uint8_t registerAddress, uint16_t value)
+HAL_StatusTypeDef INA236_WriteRegister(TMP117_HandleTypeDef *tmp117, uint8_t registerAddress, uint16_t value)
 {
-  uint8_t address[2];
-  uint8_t isDeviceReady;
-
-  address[0] = (value >> 8) & 0xFF;
-  address[1] = (value >> 0) & 0xFF;
+    uint8_t address[2];
+    // Split the 16-bit value into two bytes (MSB first)
+    address[0] = (value >> 8) & 0xFF;
+    address[1] = (value >> 0) & 0xFF;
   
-  isDeviceReady = HAL_I2C_IsDeviceReady(tmp117->hi2c, (tmp117->devAddress) << 1, TMP117_TRIALS, HAL_MAX_DELAY);
-
-  if (isDeviceReady == HAL_OK)
-  {
-    HAL_I2C_Mem_Write(tmp117->hi2c, (tmp117->devAddress) << 1, registerAddress, I2C_MEMADD_SIZE_8BIT, (uint8_t*)address, I2C_MEMADD_SIZE_16BIT, HAL_MAX_DELAY);
-    return HAL_OK;
-  }
-  return HAL_ERROR;
+    // Check if the device is ready on the I2C bus
+    HAL_StatusTypeDef isDeviceReady = HAL_I2C_IsDeviceReady(tmp117->hi2c, (tmp117->_devAddress) << 1, TMP117_TRIALS, HAL_MAX_DELAY);
+    if (isDeviceReady == HAL_OK)
+    {
+        // Write the 16-bit register to the device
+        if (HAL_I2C_Mem_Write(tmp117->hi2c, (tmp117->_devAddress) << 1, registerAddress, I2C_MEMADD_SIZE_8BIT, (uint8_t*)address, I2C_MEMADD_SIZE_16BIT, HAL_MAX_DELAY) == HAL_OK)
+        {
+            return HAL_OK;
+        }
+    }
+    return HAL_ERROR;
 }
 
 /**
-  * @brief  Read an amount of data from the sensor in blocking mode from a specific memory address
-  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
-  *                the configuration information for connecting to the sensor.
-  * @param  registerAddress Target device address: The device 7 bits address value
-  * @retval unsigned int 16-bit value of the register
+  * @brief  Read a 16-bit value from a specific register of the INA236 device
+  * @param  ina236 Pointer to a TMP117_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified TMP117.
+  * @param  registerAddress Internal register address of the TMP117 to read from 
+  * @return 16-bit data read from register, or 0xFFFF if the operation fails
   */
 uint16_t TMP117_ReadRegister(TMP117_HandleTypeDef *tmp117, uint8_t registerAddress)
 {
-  uint8_t registerResponse[2];
-  uint8_t isDeviceReady;
+    uint8_t registerResponse[2] = {0}; 
+    HAL_StatusTypeDef isDeviceReady;   
 
-  isDeviceReady = HAL_I2C_IsDeviceReady(tmp117->hi2c, (tmp117->devAddress) << 1, TMP117_TRIALS, HAL_MAX_DELAY);
+    // Check if the device is ready on the I2C bus
+    isDeviceReady = HAL_I2C_IsDeviceReady(tmp117->hi2c, (tmp117->_devAddress) << 1, TMP117_TRIALS, HAL_MAX_DELAY);
 
-  if (isDeviceReady == HAL_OK)
-  {
-    HAL_I2C_Mem_Read(tmp117->hi2c, (tmp117->devAddress) << 1, registerAddress, I2C_MEMADD_SIZE_8BIT, registerResponse, sizeof(registerResponse), HAL_MAX_DELAY);
-  }
-
-  return ((registerResponse[0] << 8) | registerResponse[1]);
+    if (isDeviceReady == HAL_OK)
+    {
+        // Read the 2-byte register data from the device
+        if (HAL_I2C_Mem_Read(tmp117->hi2c, (tmp117->_devAddress) << 1, registerAddress, I2C_MEMADD_SIZE_8BIT, registerResponse, sizeof(registerResponse), HAL_MAX_DELAY) == HAL_OK)
+        {
+            // Combine MSB and LSB to return the 16-bit value
+            return (uint16_t)((registerResponse[0] << 8) | registerResponse[1]);
+        }       
+    }
+    // Returns a maximum control value (0xFFFF) indicating a communication error
+    return 0xFFFF;
 }
 
 /**
-  *@brief Get the current value of the TEMP_RESULT register.
-  *			This register contains the result of the most recent temperature.
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@retval	signed integer 16-bit data
-*/
-int16_t TMP117_GetTemperature(TMP117_HandleTypeDef *tmp117)
+  * @brief  Read the raw value from the Configuration register
+  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure.
+  * @return The 16-bit raw value of the Configuration Register (Address: 0x01), 
+  *         or 0xFFFF if I2C communication fails.
+  */
+uint16_t INA236_GetConfiguration(TMP117_HandleTypeDef *tmp117)
 {
-	int16_t data = TMP117_ReadRegister(tmp117, TMP117_TEMP_RESULT_REG);
-	return data;
+    uint16_t regValue = TMP117_ReadRegister(tmp117, TMP117_CONFIGURATION_REG);
+
+    return regValue;
 }
 
 /**
-  *@brief Get the current value of the CONFIGURATION register.
-  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@retval	unsigned integer 16-bit data
-*/
-uint16_t TMP117_GetConfiguration(TMP117_HandleTypeDef *tmp117)
-{
-	uint16_t data = TMP117_ReadRegister(tmp117, TMP117_CONFIGURATION_REG);
-	return data;
-}
-
-/**
-  *@brief Get the current value of the HIGH LIMIT register.
-  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@retval	unsigned integer 16-bit data
-*/
+  * @brief  Read the raw value from the Temperature High Limit Register
+  * @note   This function retrieves the current configuration of the high limit comparison threshold 
+  *         from the Temperature High Limit Register (Address: 0x02).
+  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified TMP117.
+  * @retval uint16_t The 16-bit raw value of the Temperature High Limit Register, 
+  *                  or 0xFFFF if I2C communication fails.
+  */
 uint16_t TMP117_GetTempHighLimit(TMP117_HandleTypeDef *tmp117)
 {
-	uint16_t data = TMP117_ReadRegister(tmp117, TMP117_TEMP_HIGH_LIMIT_REG);
-	return data;
+    uint16_t regValue = TMP117_ReadRegister(tmp117, TMP117_TEMP_HIGH_LIMIT_REG);
+
+    return regValue;
 }
 
 /**
-  *@brief Get the current value of the LOW LIMIT register.
-  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@retval	unsigned integer 16-bit data
-*/
+  * @brief  Read the raw value from the Temperature Low Limit Register
+  * @note   This function retrieves the current configuration of the low limit comparison threshold 
+  *         from the Temperature Low Limit Register (Address: 0x03).
+  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified TMP117.
+  * @retval uint16_t The 16-bit raw value of the Temperature Low Limit Register, 
+  *                  or 0xFFFF if I2C communication fails.
+  */
 uint16_t TMP117_GetTempLowLimit(TMP117_HandleTypeDef *tmp117)
 {
-	uint16_t data = TMP117_ReadRegister(tmp117, TMP117_TEMP_LOW_LIMIT_REG);
+	uint16_t regValue = TMP117_ReadRegister(tmp117, TMP117_TEMP_LOW_LIMIT_REG);
+
 	return data;
 }
 
 /**
-  *@brief Get the manufacturer ID. This register is intended to help uniquely identify
-  *			the device.
-  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@retval	unsigned integer 16-bit data
-*/
+  * @brief  Read the unique Device ID from the TMP117 sensor
+  * @note   This function reads the Device ID Register (Address: 0x0F) which contains 
+  *         the silicon identification signature of the chip.
+  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified TMP117.
+  * @retval uint16_t The 16-bit raw value of the Device ID Register, 
+  *                  or 0xFFFF if I2C communication fails.
+  */
 uint16_t TMP117_GetDeviceId(TMP117_HandleTypeDef *tmp117)
 {
-	uint16_t data = TMP117_ReadRegister(tmp117, TMP117_DEVICE_ID_REG);
-	return data;
+	uint16_t regValue = TMP117_ReadRegister(tmp117, TMP117_DEVICE_ID_REG);
+
+	return regValue;
 }
 
 uint16_t TMP117_GetEepromUnlock(TMP117_HandleTypeDef *tmp117)
@@ -177,81 +179,6 @@ _Bool TMP117_EepromBusyFlag(TMP117_HandleTypeDef *tmp117)
 }
 
 /**
-  *@brief Allows the user to set the conversion cycle bit of the CONFIGURATION register.
-  *			See the following table for the standby time between conversions
-  *			This register controls the major operational modes of the device.
-  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@param conv: conversion cycle to be sent
-  *(+) TMP117_CONVERSION_TYPE_0
-  *(+) TMP117_CONVERSION_TYPE_1
-  *(+) TMP117_CONVERSION_TYPE_2
-  *(+) TMP117_CONVERSION_TYPE_3
-  *(+) TMP117_CONVERSION_TYPE_4
-  *(+) TMP117_CONVERSION_TYPE_5
-  *(+) TMP117_CONVERSION_TYPE_6
-  *(+) TMP117_CONVERSION_TYPE_7
-  *	+-----------+------------------------+-----------------------+------------------------+------------------------+
-  *	| CONV[2:0] | AVG[1:0] = 00 (No avg) | AVG[1:0] = 01 (8 Avg) | AVG[1:0] = 10 (32 Avg) | AVG[1:0] = 11 (64 Avg) |
-  *	+-----------+------------------------+-----------------------+------------------------+------------------------+
-  *	|       000 | 15.5ms                 | 125 ms                | 500 ms                 | 1 s                    |
-  *	|       001 | 125 ms                 | 125 ms                | 500 ms                 | 1 s                    |
-  *	|       010 | 250 ms                 | 250 ms                | 500 ms                 | 1 s                    |
-  *	|       011 | 500 ms                 | 500 ms                | 500 ms                 | 1 s                    |
-  *	|       100 | 1 s                    | 1 s                   | 1 s                    | 1 s                    |
-  *	|       101 | 4 s                    | 4 s                   | 4 s                    | 4 s                    |
-  *	|       110 | 8 s                    | 8 s                   | 8 s                    | 8 s                    |
-  *	|       111 | 16 s                   | 16 s                  | 16 s                   | 16 s                   |
-  *	+-----------+------------------------+-----------------------+------------------------+------------------------+
-  *@retval	none
-*/
-void TMP117_SetConversionCycle(TMP117_HandleTypeDef *tmp117, TMP117_ConversionCycle_HandleTypeDef conv)
-{
-	uint16_t result = TMP117_GetConfiguration(tmp117);
-	result = (result & TMP117_CONV_CYCLE_MASK) | conv;
-	TMP117_WriteRegister(tmp117, TMP117_CONFIGURATION_REG, result);
-}
-
-
-/**
-  * @brief  Set the High Limit Temperature (in °C) in the HIGH LIMIT register
-  *         This register is a 16-bit register that stores the low limit for
-  *         comparison with the temperature result. One LSB equals to 7.8125 m°C.
-  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  * @param  highLimit The higher desired temperature value, positive or negative
-  * @retval none
-  */
-void TMP117_SetHighLimitTemp(TMP117_HandleTypeDef *tmp117, uint8_t highLimit)
-{
-	uint16_t hLimit = abs(highLimit) / (7.8125 * pow(10, -3));
-	if (highLimit < 0)
-	{
-		hLimit = ~hLimit + 1;
-	}
-	TMP117_WriteRegister(tmp117, TMP117_TEMP_HIGH_LIMIT_REG, hLimit);
-}
-
-/**
-  * @brief  Set the Low Limit Temperature (in °C) in the LOW LIMIT register
-  *         This register is a 16-bit register that stores the low limit for
-  *         comparison with the temperature result. One LSB equals to 7.8125 m°C.
-  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  * @param  lowLimit The lower desired temperature value, positive or negative
-  * @retval none
-  */
-void TMP117_SetLowLimitTemp(TMP117_HandleTypeDef *tmp117, uint8_t lowLimit)
-{
-	uint16_t lLimit = abs(lowLimit) / (7.8125 * pow(10, -3));
-	if (lowLimit < 0)
-	{
-		lLimit = ~lLimit + 1;
-	}
-	TMP117_WriteRegister(tmp117, TMP117_TEMP_LOW_LIMIT_REG, lLimit);
-}
-
-/**
   *@brief Get the high limit temperature value in degree celsius
   *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
   *			the configuration information for connecting to the sensor.
@@ -264,7 +191,6 @@ double TMP117_GetHighLimitTemp(TMP117_HandleTypeDef *tmp117)
 	temp = TMP117_CheckTemperature(rawTemp);
 	return temp;
 }
-
 
 /**
   *@brief Get the low limit temperature value in degree celsius
@@ -522,6 +448,23 @@ void TMP117_SetAverage(TMP117_HandleTypeDef *tmp117, TMP117_Avg_TypeDef avg)
     // Read the current CONFIGURATION register (Address: 0x01)
     uint16_t regValue = TMP117_ReadRegister(tmp117, TMP117_CONFIGURATION_REG);
 
+    if (avg == TMP117_NO_SAMPLES)
+    {
+        tmp117->_samples = 1;
+    } 
+    else if (avg == TMP117_8_SAMPLES)
+    {
+        tmp117->_samples = 8;
+    }
+    else if (avg == TMP117_32_SAMPLES)
+    {
+        tmp117->_samples = 32;
+    }
+    else if (avg == TMP117_64_SAMPLES)
+    {
+        tmp117->_samples = 64;
+    }
+    
     // Clear the AVG bits using the mask (bits 5 and 6)
     regValue &= ~TMP117_AVG_Mask;
 
@@ -669,4 +612,141 @@ _Bool TMP117_IsHighAlertSet(TMP117_HandleTypeDef *tmp117)
     }
 
     return 0;
+}
+
+/**
+  * @brief  Configure the conversion cycle time for the TMP117 sensor
+  * @note   This function modifies the CONV bits (bits 7, 8, and 9) of the Configuration Register (0x01).
+  *         The requested conversion cycle time must be greater than or equal to the active conversion
+  *         time, which is calculated based on the current averages: active_time = _samples * 15.5 ms.
+  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified TMP117.
+  * @param  convTime Selected conversion cycle time.
+  *                  This parameter can be one of the following values:
+  *                  @arg TMP117_CONV_15_5_MS: 15.5 ms conversion cycle time
+  *                  @arg TMP117_CONV_125_MS: 125 ms conversion cycle time
+  *                  @arg TMP117_CONV_250_MS: 250 ms conversion cycle time
+  *                  @arg TMP117_CONV_500_MS: 500 ms conversion cycle time
+  *                  @arg TMP117_CONV_1_S: 1 s conversion cycle time
+  *                  @arg TMP117_CONV_4_S: 4 s conversion cycle time
+  *                  @arg TMP117_CONV_8_S: 8 s conversion cycle time
+  *                  @arg TMP117_CONV_16_S: 16 s conversion cycle time
+  * @retval None
+  */
+/**
+  * @brief  Configure the conversion cycle time for the TMP117 sensor
+  * @note   This function modifies the CONV bits (bits 7, 8, and 9) of the Configuration Register (0x01).
+  *         The requested conversion cycle time must be greater than or equal to the active conversion
+  *         time, which is calculated based on the current averages: active_time = _samples * 15.5 ms.
+  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified TMP117.
+  * @param  convTime Selected conversion cycle time.
+  *                  This parameter can be one of the following values:
+  *                  @arg TMP117_CONV_15_5_MS: 15.5 ms conversion cycle time
+  *                  @arg TMP117_CONV_125_MS: 125 ms conversion cycle time
+  *                  @arg TMP117_CONV_250_MS: 250 ms conversion cycle time
+  *                  @arg TMP117_CONV_500_MS: 500 ms conversion cycle time
+  *                  @arg TMP117_CONV_1_S: 1 s conversion cycle time
+  *                  @arg TMP117_CONV_4_S: 4 s conversion cycle time
+  *                  @arg TMP117_CONV_8_S: 8 s conversion cycle time
+  *                  @arg TMP117_CONV_16_S: 16 s conversion cycle time
+  * @retval HAL_StatusTypeDef returns:
+  *         - HAL_OK: If configuration is successfully validated and written to the register.
+  *         - HAL_ERROR: If validation fails (requested time < active time) or if I2C write fails.
+  */
+HAL_StatusTypeDef TMP117_SetConvTime(TMP117_HandleTypeDef *tmp117, TMP117_ConvTime_TypeDef convTime)
+{
+    double activeTime = tmp117->_samples * 15.5;
+    double requestedTime = 0.0;
+    // Map the selected enum to its physical time in milliseconds
+    switch (convTime)
+    {
+        case TMP117_CONV_15_5_MS: requestedTime = 15.5;   break;
+        case TMP117_CONV_125_MS:  requestedTime = 125.0;  break;
+        case TMP117_CONV_250_MS:  requestedTime = 250.0;  break;
+        case TMP117_CONV_500_MS:  requestedTime = 500.0;  break;
+        case TMP117_CONV_1_S:     requestedTime = 1000.0; break;
+        case TMP117_CONV_4_S:     requestedTime = 4000.0; break;
+        case TMP117_CONV_8_S:     requestedTime = 8000.0; break;
+        case TMP117_CONV_16_S:    requestedTime = 16000.0;break;
+        default:                  requestedTime = 0.0;    break;
+    }
+    // Validate that the total cycle time is not less than the active conversion time
+    if (requestedTime < activeTime)
+    {
+        printf("ERROR: Requested conversion time (%.1f ms) is less than active conversion time (%.1f ms)\r\n", 
+               requestedTime, activeTime);
+        return HAL_ERROR;
+    }
+    // Read the current CONFIGURATION register (Address: 0x01)
+    uint16_t regValue = TMP117_ReadRegister(tmp117, TMP117_CONFIGURATION_REG);
+
+    // Clear the CONV bits using the mask (bits 7, 8, and 9)
+    regValue &= ~TMP117_CONV_Mask;
+
+    // Set the new CONV by shifting it to its position (CONV_Pos = 7)
+    // and protecting it with the mask
+    regValue |= (convTime << TMP117_CONV_Pos) & TMP117_CONV_Mask;
+
+    // Write the resulting value back to the register and return the HAL write status
+    return TMP117_WriteRegister(tmp117, TMP117_CONFIGURATION_REG, regValue);
+}
+
+/**
+  * @brief  Set the temperature high limit threshold for comparison on the TMP117 sensor
+  * @details This function writes to the Temperature High Limit Register (Address: 0x02) which 
+  *          stores the high threshold. One LSB equals 7.8125 m°C (0.0078125 °C) with a range of ±256 °C.
+  *          Negative temperatures are automatically converted to binary two's complement format.
+  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified TMP117.
+  * @param  highLimit High limit temperature threshold in degrees Celsius (°C).
+  * @retval None
+  */
+void TMP117_SetHighLimit(TMP117_HandleTypeDef *tmp117, double highLimit)
+{
+    // One LSB equals 7.8125 m°C = 0.0078125 °C.
+    // Convert the double value in °C to 16-bit signed integer (two's complement)
+    int16_t regValue = (int16_t)(highLimit / 0.0078125);
+    // Write the raw value back to the high limit register
+    TMP117_WriteRegister(tmp117, TMP117_TEMP_HIGH_LIMIT_REG, (uint16_t)regValue);
+}
+
+/**
+  * @brief  Set the temperature low limit threshold for comparison on the TMP117 sensor
+  * @details This function writes to the Temperature Low Limit Register (Address: 0x03) which 
+  *          stores the low threshold. One LSB equals 7.8125 m°C (0.0078125 °C) with a range of ±256 °C.
+  *          Negative temperatures are automatically converted to binary two's complement format.
+  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified TMP117.
+  * @param  lowLimit Low limit temperature threshold in degrees Celsius (°C).
+  * @retval None
+  */
+void TMP117_SetLowLimit(TMP117_HandleTypeDef *tmp117, double lowLimit)
+{
+    // One LSB equals 7.8125 m°C = 0.0078125 °C.
+    // Convert the double value in °C to 16-bit signed integer (two's complement)
+    int16_t regValue = (int16_t)(lowLimit / 0.0078125);
+    // Write the raw value back to the low limit register
+    TMP117_WriteRegister(tmp117, TMP117_TEMP_LOW_LIMIT_REG, (uint16_t)regValue);
+}
+
+/**
+  * @brief  Read the temperature measurement and calculate its value in degrees Celsius (°C)
+  * @note   The TMP117 temperature result register (Address: 0x00) has a resolution of 7.8125 m°C/LSB 
+  *         (0.0078125 °C/LSB) and represents negative values in binary two's complement format.
+  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified TMP117.
+  * @retval double The measured temperature in degrees Celsius (°C), or -999.0 if the read operation fails.
+  */
+double TMP117_GetTemperature_C(TMP117_HandleTypeDef *tmp117)
+{
+    // Read the Temperature Result Register (Address: 0x00)
+    uint16_t regValue = TMP117_ReadRegister(tmp117, TMP117_TEMP_RESULT_REG);
+
+    // Cast to signed 16-bit integer (two's complement)
+    // This preserves the negative sign if the temperature is below 0 °C
+    int16_t rawTemp = (int16_t)regValue;
+    
+    // Convert raw LSB value to degrees Celsius (1 LSB = 0.0078125 °C)
+    return (double)rawTemp * 0.0078125;
 }
