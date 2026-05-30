@@ -75,24 +75,25 @@ uint16_t INA236_ReadRegister(INA236_HandleTypeDef *ina236, uint8_t registerAddre
   */
 HAL_StatusTypeDef INA236_Init(INA236_HandleTypeDef *ina236, I2C_HandleTypeDef *i2c, uint8_t devAddress)
 {
-  // Bind physical communication parameters to local handler
-  ina236->hi2c = i2c;
-  ina236->_devAddress = devAddress;
+    // Bind physical communication parameters to local handler
+    ina236->hi2c = i2c;
+    ina236->_devAddress = devAddress;
+    ina236->_alertType = INA236_SOL;
 
-  // 1. Verify if the sensor is physically responding on the I2C bus
-  if (HAL_I2C_IsDeviceReady(ina236->hi2c, (ina236->_devAddress) << 1, INA236_TRIALS, HAL_MAX_DELAY) != HAL_OK)
-  {
-    return HAL_ERROR;
-  }
+    // Verify if the sensor is physically responding on the I2C bus
+    if (HAL_I2C_IsDeviceReady(ina236->hi2c, (ina236->_devAddress) << 1, INA236_TRIALS, HAL_MAX_DELAY) != HAL_OK)
+    {
+        return HAL_ERROR;
+    }
 
-  // 2. Configure default settings
-  INA236_SetMode(ina236, INA236_CONTINUOUS_SHUNT_BUS_VOLTAGE);
-  INA236_SetShuntConvTime(ina236, INA236_1100_US);
-  INA236_SetBusConvTime(ina236, INA236_1100_US);
-  INA236_SetAverage(ina236, INA236_64_SAMPLES);
-  INA236_SetAdcRange(ina236, INA236_ADC_RANGE_81_92_MV);
+    // Configure default settings
+    INA236_SetMode(ina236, INA236_CONTINUOUS_SHUNT_BUS_VOLTAGE);
+    INA236_SetShuntConvTime(ina236, INA236_1100_US);
+    INA236_SetBusConvTime(ina236, INA236_1100_US);
+    INA236_SetAverage(ina236, INA236_64_SAMPLES);
+    INA236_SetAdcRange(ina236, INA236_ADC_RANGE_81_92_MV);
 
-  return HAL_OK;
+    return HAL_OK;
 }
 
 /**
@@ -507,12 +508,22 @@ void INA236_SetPowerOverLimit(INA236_HandleTypeDef *ina236, INA236_PowerAlert_Ty
     // Read the current MASK_ENABLE register (Address: 0x06)
     uint16_t regValue = INA236_ReadRegister(ina236, INA236_MASK_ENABLE_REGISTER);
 
-    // Clear the POL bit using the mask (bit 11)
-    regValue &= ~INA236_POL_Mask;
+    if (powerAlert == INA236_POWER_LIMIT_ALERT_ENABLE)
+    {
+        // Set the active alert type in the handler structure
+        ina236->_alertType = INA236_POL_ALERT;
 
-    // Set the new mode by shifting it to its position (POL_Pos = 11)
-    // and protecting it with the mask
-    regValue |= (powerAlert << INA236_POL_Pos) & INA236_POL_Mask;
+        // Clear bits 15 (SOL), 14 (SUL), 13 (BOL), and 12 (BUL) by setting them to 0
+        regValue &= ~(INA236_SOL | INA236_SUL | INA236_BOL | INA236_BUL);
+
+        // Set bit 11 (POL) to 1
+        regValue |= INA236_POL;
+    }
+    else
+    {
+        // If polAlert is disabled, just clear bit 11 (POL)
+        regValue &= ~INA236_POL;
+    }
 
     // Write the updated value back to the MASK_ENABLE register
     INA236_WriteRegister(ina236, INA236_MASK_ENABLE_REGISTER, regValue);
@@ -532,12 +543,22 @@ void INA236_SetBusUnderLimit(INA236_HandleTypeDef *ina236, INA236_BusUnderLimitA
     // Read the current MASK_ENABLE register (Address: 0x06)
     uint16_t regValue = INA236_ReadRegister(ina236, INA236_MASK_ENABLE_REGISTER);
 
-    // Clear the BUL bit using the mask (bit 12)
-    regValue &= ~INA236_BUL_Mask;
+    if (bulAlert == INA236_BUS_UNDER_LIMIT_ALERT_ENABLE)
+    {
+        // Set the active alert type in the handler structure
+        ina236->_alertType = INA236_BUL_ALERT;
 
-    // Set the new mode by shifting it to its position (BUL_Pos = 12)
-    // and protecting it with the mask
-    regValue |= (bulAlert << INA236_BUL_Pos) & INA236_BUL_Mask;
+        // Clear bits 15 (SOL), 14 (SUL), 13 (BOL), and 11 (POL) by setting them to 0
+        regValue &= ~(INA236_SOL | INA236_SUL | INA236_BOL | INA236_POL);
+
+        // Set bit 12 (BUL) to 1
+        regValue |= INA236_BUL;
+    }
+    else
+    {
+        // If bulAlert is disabled, just clear bit 12 (BUL)
+        regValue &= ~INA236_BUL;
+    }
 
     // Write the updated value back to the MASK_ENABLE register
     INA236_WriteRegister(ina236, INA236_MASK_ENABLE_REGISTER, regValue);
@@ -556,11 +577,24 @@ void INA236_SetBusOverLimit(INA236_HandleTypeDef *ina236, INA236_BusOverLimitAle
 {
     // Read the current MASK_ENABLE register (Address: 0x06)
     uint16_t regValue = INA236_ReadRegister(ina236, INA236_MASK_ENABLE_REGISTER);
-    // Clear the BOL bit using the mask (bit 13)
-    regValue &= ~INA236_BOL_Mask;
-    // Set the new configuration by shifting it to its position (BOL_Pos = 13)
-    // and protecting it with the mask
-    regValue |= (bolAlert << INA236_BOL_Pos) & INA236_BOL_Mask;
+
+    if (bolAlert == INA236_BUS_OVER_LIMIT_ALERT_ENABLE)
+    {
+        // Set the active alert type in the handler structure
+        ina236->_alertType = INA236_BOL_ALERT;
+
+        // Clear bits 15 (SOL), 14 (SUL), 12 (BUL), and 11 (POL) by setting them to 0
+        regValue &= ~(INA236_SOL | INA236_SUL | INA236_BUL | INA236_POL);
+
+        // Set bit 13 (BOL) to 1
+        regValue |= INA236_BOL;
+    }
+    else
+    {
+        // If bolAlert is disabled, just clear bit 13 (BOL)
+        regValue &= ~INA236_BOL;
+    }
+
     // Write the updated value back to the MASK_ENABLE register
     INA236_WriteRegister(ina236, INA236_MASK_ENABLE_REGISTER, regValue);
 }
@@ -578,11 +612,24 @@ void INA236_SetShuntUnderLimit(INA236_HandleTypeDef *ina236, INA236_ShuntUnderLi
 {
     // Read the current MASK_ENABLE register (Address: 0x06)
     uint16_t regValue = INA236_ReadRegister(ina236, INA236_MASK_ENABLE_REGISTER);
-    // Clear the SUL bit using the mask (bit 14)
-    regValue &= ~INA236_SUL_Mask;
-    // Set the new configuration by shifting it to its position (SUL_Pos = 14)
-    // and protecting it with the mask
-    regValue |= (sulAlert << INA236_SUL_Pos) & INA236_SUL_Mask;
+
+    if (sulAlert == INA236_SHUNT_UNDER_LIMIT_ALERT_ENABLE)
+    {
+        // Set the active alert type in the handler structure
+        ina236->_alertType = INA236_SUL_ALERT;
+
+        // Clear bits 15 (SOL), 13 (BOL), 12 (BUL), and 11 (POL) by setting them to 0
+        regValue &= ~(INA236_SOL | INA236_BOL | INA236_BUL | INA236_POL);
+
+        // Set bit 14 (SUL) to 1
+        regValue |= INA236_SUL;
+    }
+    else
+    {
+        // If sulAlert is disabled, just clear bit 14 (SUL)
+        regValue &= ~INA236_SUL;
+    }
+
     // Write the updated value back to the MASK_ENABLE register
     INA236_WriteRegister(ina236, INA236_MASK_ENABLE_REGISTER, regValue);
 }
@@ -600,11 +647,24 @@ void INA236_SetShuntOverLimit(INA236_HandleTypeDef *ina236, INA236_ShuntOverLimi
 {
     // Read the current MASK_ENABLE register (Address: 0x06)
     uint16_t regValue = INA236_ReadRegister(ina236, INA236_MASK_ENABLE_REGISTER);
-    // Clear the SOL bit using the mask (bit 15)
-    regValue &= ~INA236_SOL_Mask;
-    // Set the new configuration by shifting it to its position (SOL_Pos = 15)
-    // and protecting it with the mask
-    regValue |= (solAlert << INA236_SOL_Pos) & INA236_SOL_Mask;
+
+    if (solAlert == INA236_SHUNT_OVER_LIMIT_ALERT_ENABLE)
+    {
+        // Set the active alert type in the handler structure
+        ina236->_alertType = INA236_SOL_ALERT;
+
+        // Clear bits 14 (SUL), 13 (BOL), 12 (BUL), and 11 (POL) by setting them to 0
+        regValue &= ~(INA236_SUL | INA236_BOL | INA236_BUL | INA236_POL);
+
+        // Set bit 15 (SOL) to 1
+        regValue |= INA236_SOL;
+    }
+    else
+    {
+        // If solAlert is disabled, just clear bit 15 (SOL)
+        regValue &= ~INA236_SOL;
+    }
+    
     // Write the updated value back to the MASK_ENABLE register
     INA236_WriteRegister(ina236, INA236_MASK_ENABLE_REGISTER, regValue);
 }
@@ -744,4 +804,85 @@ double INA236_GetPower_W(INA236_HandleTypeDef *ina236)
     if (regValue == 0xFFFF) return 0.0;
     // Power LSB is fixed at 32 * Current_LSB
     return (double)regValue * (32.0 * ina236->_currentLsb);
+}
+
+/**
+  * @brief  Read the raw value from the Configuration register
+  * @note   This register controls the operating mode, conversion times, averaging 
+  *         settings, and the ADC range.
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure.
+  * @return The 16-bit raw value of the Configuration Register (Address: 0x00), 
+  *         or 0xFFFF if I2C communication fails.
+  */
+uint16_t INA236_GetConfiguration(INA236_HandleTypeDef *ina236)
+{
+    uint16_t regValue = INA236_ReadRegister(ina236, INA236_CONFIGURATION_REGISTER);
+
+    return regValue;
+}
+
+/**
+  * @brief  Read the raw value from the Calibration register
+  * @note   This register contains the scaling coefficient calculated based on the 
+  *         shunt resistor and maximum expected current.
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure.
+  * @return The 16-bit raw value of the Calibration Register (Address: 0x05), 
+  *         or 0xFFFF if I2C communication fails.
+  */
+uint16_t INA236_GetCalibration(INA236_HandleTypeDef *ina236)
+{
+    uint16_t regValue = INA236_ReadRegister(ina236, INA236_CALIBRATION_REGISTER);
+
+    return regValue;
+}
+
+
+/**
+  * @brief  Read the raw value from the Mask/Enable register
+  * @note   This register contains alert enable flags, conversion ready status, 
+  *         and mathematical overflow flags.
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure.
+  * @return The 16-bit raw value of the Mask/Enable Register (Address: 0x06), 
+  *         or 0xFFFF if I2C communication fails.
+  */
+uint16_t INA236_GetMaskEnable(INA236_HandleTypeDef *ina236)
+{
+    uint16_t regValue = INA236_ReadRegister(ina236, INA236_MASK_ENABLE_REGISTER);
+
+    return regValue;
+}
+
+/**
+  * @brief  Set the physical threshold value in the Alert Limit register
+  * @note   This function automatically scales the physical value (in Volts or Watts) 
+  *         to the raw register format based on the currently active alert type.
+  * @param  ina236 Pointer to a INA236_HandleTypeDef structure.
+  * @param  alertLimit The physical limit to set:
+  *                    - In Volts (V) for shunt voltage alerts (SOL, SUL)
+  *                    - In Volts (V) for bus voltage alerts (BOL, BUL)
+  *                    - In Watts (W) for power limit alert (POL)
+  * @retval None
+  */
+void INA236_SetAlertLimit(INA236_HandleTypeDef *ina236, double alertLimit)
+{
+    uint16_t rawValue = 0;
+
+    // Shunt voltage alerts (SOL, SUL) - scaled by shunt ADC resolution (in Volts)
+    if (ina236->_alertType == INA236_SOL_ALERT || ina236->_alertType == INA236_SUL_ALERT)
+    {
+        rawValue = (uint16_t)(alertLimit / ina236->_resolution);
+    }
+    // Bus voltage alerts (BOL, BUL) - fixed 1.6 mV/LSB resolution
+    else if (ina236->_alertType == INA236_BOL_ALERT || ina236->_alertType == INA236_BUL_ALERT)
+    {
+        rawValue = (uint16_t)(alertLimit / 0.0016);
+    }
+    // Power over limit alert (POL) - fixed 32 * Current_LSB resolution
+    else if (ina236->_alertType == INA236_POL_ALERT)
+    {
+        rawValue = (uint16_t)(alertLimit / (32.0 * ina236->_currentLsb));
+    }
+
+    // Write the raw value to the Alert Limit Register (Address: 0x07)
+    INA236_WriteRegister(ina236, INA236_ALERT_LIMIT_REGISTER, rawValue)
 }

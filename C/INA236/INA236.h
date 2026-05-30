@@ -253,18 +253,27 @@ typedef enum
     INA236_SHUNT_OVER_LIMIT_ALERT_ENABLE    = 0x1U  
 } INA236_ShuntOverLimitAlert_TypeDef;
 
+typedef enum
+{
+    INA236_SOL_ALERT  = 0x1U,
+    INA236_SUL_ALERT  = 0x2U,
+    INA236_BOL_ALERT  = 0x3U,
+    INA236_BUL_ALERT  = 0x4U,
+    INA236_POL_ALERT  = 0x5U
+} INA236_AlertType_TypeDef;
+
 typedef struct 
 {
-  I2C_HandleTypeDef  *hi2c;
-  uint8_t            _devAddress;
-  _Bool              _adcRange;
-  double             _resolution;
-  double             _shuntResistor;
-  double             _maximumCurrent;
-  double 			       _shuntAdcRange;
-  double             _currentLsbMin;
-  double             _currentLsb;
-  AlertType_t        alertType;
+  I2C_HandleTypeDef         *hi2c;
+  uint8_t                   _devAddress;
+  _Bool                     _adcRange;
+  double                    _resolution;
+  double                    _shuntResistor;
+  double                    _maximumCurrent;
+  double 			        _shuntAdcRange;
+  double                    _currentLsbMin;
+  double                    _currentLsb;
+  INA236_AlertType_TypeDef  _alertType;
 } INA236_HandleTypeDef;
 
 
@@ -294,12 +303,16 @@ void INA236_SetBusUnderLimit(INA236_HandleTypeDef *ina236, INA236_BusUnderLimitA
 void INA236_SetBusOverLimit(INA236_HandleTypeDef *ina236, INA236_BusOverLimitAlert_TypeDef bolAlert);
 void INA236_SetShuntUnderLimit(INA236_HandleTypeDef *ina236, INA236_ShuntUnderLimitAlert_TypeDef sulAlert);
 void INA236_SetShuntOverLimit(INA236_HandleTypeDef *ina236, INA236_ShuntOverLimitAlert_TypeDef solAlert);
+void INA236_SetAlertLimit(INA236_HandleTypeDef *ina236, int16_t alertLimit);
 
 /* Diagnostic Readings */
 _Bool INA236_IsConversionReady(INA236_HandleTypeDef *ina236);
 uint8_t INA236_IsMathOverflowReady(INA236_HandleTypeDef *ina236);
 uint16_t INA236_GetManufacturerID(INA236_HandleTypeDef *ina236);
 uint16_t INA236_GetDeviceID(INA236_HandleTypeDef *ina236);
+uint16_t INA236_GetConfiguration(INA236_HandleTypeDef *ina236);
+uint16_t INA236_GetCalibration(INA236_HandleTypeDef *ina236);
+uint16_t INA236_GetMaskEnable(INA236_HandleTypeDef *ina236);
 
 /* Measurement Readings */
 double INA236_GetShuntVoltage_mV(INA236_HandleTypeDef *ina236);
