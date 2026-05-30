@@ -12,7 +12,7 @@
   * @retval HAL_OK: Write operation completed successfully
   * @retval HAL_ERROR: Device is not ready or write operation failed
   */
-HAL_StatusTypeDef INA236_WriteRegister(TMP117_HandleTypeDef *tmp117, uint8_t registerAddress, uint16_t value)
+HAL_StatusTypeDef TMP117_WriteRegister(TMP117_HandleTypeDef *tmp117, uint8_t registerAddress, uint16_t value)
 {
     uint8_t address[2];
     // Split the 16-bit value into two bytes (MSB first)
@@ -66,7 +66,7 @@ uint16_t TMP117_ReadRegister(TMP117_HandleTypeDef *tmp117, uint8_t registerAddre
   * @return The 16-bit raw value of the Configuration Register (Address: 0x01), 
   *         or 0xFFFF if I2C communication fails.
   */
-uint16_t INA236_GetConfiguration(TMP117_HandleTypeDef *tmp117)
+uint16_t TMP117_GetConfiguration(TMP117_HandleTypeDef *tmp117)
 {
     uint16_t regValue = TMP117_ReadRegister(tmp117, TMP117_CONFIGURATION_REG);
 
@@ -102,7 +102,7 @@ uint16_t TMP117_GetTempLowLimit(TMP117_HandleTypeDef *tmp117)
 {
 	uint16_t regValue = TMP117_ReadRegister(tmp117, TMP117_TEMP_LOW_LIMIT_REG);
 
-	return data;
+	return regValue;
 }
 
 /**
@@ -173,8 +173,8 @@ uint16_t TMP117_GetEeprom3(TMP117_HandleTypeDef *tmp117)
 */
 _Bool TMP117_EepromBusyFlag(TMP117_HandleTypeDef *tmp117)
 {
-	value = TMP117_GetConfiguration(tmp117);
-	valueFlag = CHECK_BIT(value, 12);
+	uint16_t value = TMP117_GetConfiguration(tmp117);
+	_Bool valueFlag = CHECK_BIT(value, 12);
 	return valueFlag;
 }
 
@@ -207,101 +207,6 @@ double TMP117_GetLowLimitTemp(TMP117_HandleTypeDef *tmp117)
 }
 
 /**
-  * @brief  Verify if the MSB in target register is set to 1.
-  *         If bit is set to 1 then makes the two's complement
-  * @param  value: Its is the value obtained from target register
-  * @retval positive or negative temperature
-  */
-double TMP117_CheckTemperature(uint16_t value)
-{
-	double temperature;
-	_Bool isMsb;
-
-	isMsb = CHECK_BIT(value, 15);
-
-	if (isMsb)
-	{
-		value = ~value + 0x0001;
-	}
-
-	temperature = value * (7.8125 * pow(10, -3));
-
-	return (!isMsb ? temperature : -temperature);
-}
-
-
-/**
-  *@brief Get the current value of the temperature in degree celsius
-  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@retval	double temperature low limit value
-*/
-double TMP117_GetTemperatureCelsius(TMP117_HandleTypeDef *tmp117)
-{
-	  int16_t rawTemp;
-	  double temperature;
-
-	  rawTemp = TMP117_GetTemperature(tmp117);
-	  temperature =  TMP117_CheckTemperature(rawTemp);
-	  return temperature;
-}
-
-/**
-  *@brief Allows the user to lock or unlock the EEPROM register
-    * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  * @param  lockUnlock
-  *(+) TMP117_LOCK_EEPROM: EEPROM is locked for programming, writes to all EEPROM addresses
-  *		(such as configuration, limits, and EEPROM locations 1-4) are written to registers
-  *		in digital logic and are not programmed in the EEPROM
-  *(+) TMP117_UNLOCK_EEPROM: EEPROM unlocked for programming, any writes to programmable
-  *		registers program the respective location in the EEPROM
-  *@retval	none
-*/
-void TMP117_SetLockUnlockEeprom(TMP117_HandleTypeDef *tmp117, TMP117_LockUnlock_HandleTypeDef lockUnlock)
-{
-	uint16_t result = TMP117_GetEepromUnlock(tmp117);
-	result = (result & TMP117_LOCK_UNLOCK_EEPROM_MASK) | lockUnlock;
-	TMP117_WriteRegister(tmp117, TMP117_EEPROM_UNLOCK_REG, result);
-}
-
-HAL_StatusTypeDef TMP117_SetEeprom1(TMP117_HandleTypeDef *tmp117, uint16_t data)
-{
-	value = TMP117_GetEepromUnlock(tmp117);
-	valueFlag = CHECK_BIT(value,15);
-	if (valueFlag)
-	{
-		TMP117_WriteRegister(tmp117, TMP117_EEPROM1_REG, data);
-		return HAL_OK;
-	}
-	return HAL_ERROR;
-}
-
-HAL_StatusTypeDef TMP117_SetEeprom2(TMP117_HandleTypeDef *tmp117, uint16_t data)
-{
-	value = TMP117_GetEepromUnlock(tmp117);
-	valueFlag = CHECK_BIT(value,15);
-	if (valueFlag)
-	{
-		TMP117_WriteRegister(tmp117, TMP117_EEPROM1_REG, data);
-		return HAL_OK;
-	}
-	return HAL_ERROR;
-}
-
-HAL_StatusTypeDef TMP117_SetEeprom3(TMP117_HandleTypeDef *tmp117, uint16_t data)
-{
-	value = TMP117_GetEepromUnlock(tmp117);
-	valueFlag = CHECK_BIT(value,15);
-	if (valueFlag)
-	{
-		TMP117_WriteRegister(tmp117, TMP117_EEPROM1_REG, data);
-		return HAL_OK;
-	}
-	return HAL_ERROR;
-}
-
-/**
   * @brief  Create a new instance of the tmp117 temperature sensor setting the I²C port and slave address
   *         Set the Configuration Register with default value 0220h.
   * @param  tmp117 points to an object of type Tmp117_t 
@@ -312,15 +217,14 @@ HAL_StatusTypeDef TMP117_SetEeprom3(TMP117_HandleTypeDef *tmp117, uint16_t data)
   */
 void TMP117_Init(TMP117_HandleTypeDef *tmp117, I2C_HandleTypeDef *i2c)
 {
-  tmp117->hi2c = i2c;
-  tmp117->devAddress = TMP117_ADDRESS;
+    tmp117->hi2c = i2c;
+    tmp117->_devAddress = TMP117_ADDRESS;
   
-  TMP117_SetMode(tmp117, TMP117_CONTINUOUS_MODE);
-  TMP117_SetAverage(tmp117, TMP117_AVG_32_CONV);
-  TMP117_SetConversionCycle(tmp117, TMP117_CONVERSION_TYPE_7);
-  TMP117_SetThermAlertMode(tmp117, TMP117_ALERT_MODE);
-  TMP117_SetAlertPinPolarity(tmp117, TMP117_ALERT_ACTIVE_HIGH);
-  TMP117_SetAlertPinSelect(tmp117, TMP117_ALERT_FOR_DATA_READY_FLAG);
+    TMP117_SetAlertPinFunction(tmp117, TMP117_ALERT_FOR_DATA_READY_FLAG);
+    TMP117_SetAlertPinPolarity(tmp117, TMP117_ALERT_ACTIVE_HIGH);
+    TMP117_SetThermAlertMode(tmp117, TMP117_ALERT_MODE);
+    TMP117_SetAverage(tmp117, TMP117_32_SAMPLES);
+    TMP117_SetMode(tmp117, TMP117_CONTINUOUS_MODE);  
 }
 
 
@@ -336,7 +240,7 @@ void TMP117_Init(TMP117_HandleTypeDef *tmp117, I2C_HandleTypeDef *i2c)
 void TMP117_ResetDevice(TMP117_HandleTypeDef *tmp117)
 {
     // Write the reset bit (bit 15 = 0x8000) directly to the configuration register.
-    TMP117_WriteRegister(ina236, TMP117_CONFIGURATION_REG, TMP117_SOFTRESET);
+    TMP117_WriteRegister(tmp117, TMP117_CONFIGURATION_REG, TMP117_SOFTRESET);
     
     // Wait for a brief delay to ensure that the chip's internal circuits
     // and I2C communication have stabilized after the reset.
@@ -366,7 +270,7 @@ void TMP117_SetAlertPinFunction(TMP117_HandleTypeDef *tmp117, TMP117_DRALERT_Typ
     regValue |= (pinFunction << TMP117_DRALERT_Pos) & TMP117_DRALERT_Mask;
 
     //Write the resulting value back to the register
-	TMP117_WriteRegister(tmp117, TMP117_CONFIGURATION_REG, result);
+	TMP117_WriteRegister(tmp117, TMP117_CONFIGURATION_REG, regValue);
 }
 
 /**
@@ -423,7 +327,7 @@ void TMP117_SetThermAlertMode(TMP117_HandleTypeDef *tmp117, TMP117_ThermAlertMod
 
     // Set the new TnA by shifting it to its position (TnA_Pos = 4)
     // and protecting it with the mask
-    regValue |= (polarity << TMP117_TnA_Pos) & TMP117_TnA_Mask;
+    regValue |= (tnA << TMP117_TnA_Pos) & TMP117_TnA_Mask;
 
     //Write the resulting value back to the register
     TMP117_WriteRegister(tmp117, TMP117_CONFIGURATION_REG, regValue);
@@ -473,7 +377,6 @@ void TMP117_SetAverage(TMP117_HandleTypeDef *tmp117, TMP117_Avg_TypeDef avg)
     regValue |= (avg << TMP117_AVG_Pos) & TMP117_AVG_Mask;
 
     // Write the resulting value back to the register
-    // (Nota: Corregido INA236_WriteRegister por TMP117_WriteRegister)
     TMP117_WriteRegister(tmp117, TMP117_CONFIGURATION_REG, regValue);
 }
 
@@ -746,7 +649,7 @@ double TMP117_GetTemperature_C(TMP117_HandleTypeDef *tmp117)
     // Cast to signed 16-bit integer (two's complement)
     // This preserves the negative sign if the temperature is below 0 °C
     int16_t rawTemp = (int16_t)regValue;
-    
+
     // Convert raw LSB value to degrees Celsius (1 LSB = 0.0078125 °C)
     return (double)rawTemp * 0.0078125;
 }
