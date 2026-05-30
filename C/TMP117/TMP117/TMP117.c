@@ -82,7 +82,7 @@ uint16_t TMP117_GetConfiguration(TMP117_HandleTypeDef *tmp117)
   * @retval uint16_t The 16-bit raw value of the Temperature High Limit Register, 
   *                  or 0xFFFF if I2C communication fails.
   */
-uint16_t TMP117_GetTempHighLimit(TMP117_HandleTypeDef *tmp117)
+uint16_t TMP117_GetTempHighLimitReg(TMP117_HandleTypeDef *tmp117)
 {
     uint16_t regValue = TMP117_ReadRegister(tmp117, TMP117_TEMP_HIGH_LIMIT_REG);
 
@@ -98,7 +98,7 @@ uint16_t TMP117_GetTempHighLimit(TMP117_HandleTypeDef *tmp117)
   * @retval uint16_t The 16-bit raw value of the Temperature Low Limit Register, 
   *                  or 0xFFFF if I2C communication fails.
   */
-uint16_t TMP117_GetTempLowLimit(TMP117_HandleTypeDef *tmp117)
+uint16_t TMP117_GetTempLowLimitReg(TMP117_HandleTypeDef *tmp117)
 {
 	uint16_t regValue = TMP117_ReadRegister(tmp117, TMP117_TEMP_LOW_LIMIT_REG);
 
@@ -184,10 +184,10 @@ _Bool TMP117_EepromBusyFlag(TMP117_HandleTypeDef *tmp117)
   *			the configuration information for connecting to the sensor.
   *@retval	double temperature high limit value
 */
-double TMP117_GetHighLimitTemp(TMP117_HandleTypeDef *tmp117)
+double TMP117_GetHighLimitTemp_C(TMP117_HandleTypeDef *tmp117)
 {
 	double temp = 0.0;
-	int16_t rawTemp = TMP117_GetTempHighLimit(tmp117);
+	int16_t rawTemp = TMP117_GetTempHighLimitReg(tmp117);
 	temp = TMP117_CheckTemperature(rawTemp);
 	return temp;
 }
@@ -198,10 +198,10 @@ double TMP117_GetHighLimitTemp(TMP117_HandleTypeDef *tmp117)
   *			the configuration information for connecting to the sensor.
   *@retval	double temperature low limit value
 */
-double TMP117_GetLowLimitTemp(TMP117_HandleTypeDef *tmp117)
+double TMP117_GetLowLimitTemp_C(TMP117_HandleTypeDef *tmp117)
 {
 	double temp = 0.0;
-	int16_t rawTemp = TMP117_GetTempLowLimit(tmp117);
+	int16_t rawTemp = TMP117_GetTempLowLimitReg(tmp117);
 	temp = TMP117_CheckTemperature(rawTemp);
 	return temp;
 }
@@ -215,10 +215,11 @@ double TMP117_GetLowLimitTemp(TMP117_HandleTypeDef *tmp117)
   * @param  registerAddress Target device address: The device 7 bits address value
   * @retval none
   */
-void TMP117_Init(TMP117_HandleTypeDef *tmp117, I2C_HandleTypeDef *i2c)
+void TMP117_Init(TMP117_HandleTypeDef *tmp117, I2C_HandleTypeDef *i2c, uint8_t devAddress)
 {
+  // Bind physical communication parameters to local handler
     tmp117->hi2c = i2c;
-    tmp117->_devAddress = TMP117_ADDRESS;
+    tmp117->_devAddress = devAddress;
   
     TMP117_SetAlertPinFunction(tmp117, TMP117_ALERT_FOR_DATA_READY_FLAG);
     TMP117_SetAlertPinPolarity(tmp117, TMP117_ALERT_ACTIVE_HIGH);
@@ -534,25 +535,6 @@ _Bool TMP117_IsHighAlertSet(TMP117_HandleTypeDef *tmp117)
   *                  @arg TMP117_CONV_4_S: 4 s conversion cycle time
   *                  @arg TMP117_CONV_8_S: 8 s conversion cycle time
   *                  @arg TMP117_CONV_16_S: 16 s conversion cycle time
-  * @retval None
-  */
-/**
-  * @brief  Configure the conversion cycle time for the TMP117 sensor
-  * @note   This function modifies the CONV bits (bits 7, 8, and 9) of the Configuration Register (0x01).
-  *         The requested conversion cycle time must be greater than or equal to the active conversion
-  *         time, which is calculated based on the current averages: active_time = _samples * 15.5 ms.
-  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
-  *                the configuration and driver state for the specified TMP117.
-  * @param  convTime Selected conversion cycle time.
-  *                  This parameter can be one of the following values:
-  *                  @arg TMP117_CONV_15_5_MS: 15.5 ms conversion cycle time
-  *                  @arg TMP117_CONV_125_MS: 125 ms conversion cycle time
-  *                  @arg TMP117_CONV_250_MS: 250 ms conversion cycle time
-  *                  @arg TMP117_CONV_500_MS: 500 ms conversion cycle time
-  *                  @arg TMP117_CONV_1_S: 1 s conversion cycle time
-  *                  @arg TMP117_CONV_4_S: 4 s conversion cycle time
-  *                  @arg TMP117_CONV_8_S: 8 s conversion cycle time
-  *                  @arg TMP117_CONV_16_S: 16 s conversion cycle time
   * @retval HAL_StatusTypeDef returns:
   *         - HAL_OK: If configuration is successfully validated and written to the register.
   *         - HAL_ERROR: If validation fails (requested time < active time) or if I2C write fails.
@@ -560,6 +542,7 @@ _Bool TMP117_IsHighAlertSet(TMP117_HandleTypeDef *tmp117)
 HAL_StatusTypeDef TMP117_SetConvTime(TMP117_HandleTypeDef *tmp117, TMP117_ConvTime_TypeDef convTime)
 {
     double activeTime = tmp117->_samples * 15.5;
+    tmp117->_activeTime = activeTime;
     double requestedTime = 0.0;
     // Map the selected enum to its physical time in milliseconds
     switch (convTime)
@@ -574,11 +557,12 @@ HAL_StatusTypeDef TMP117_SetConvTime(TMP117_HandleTypeDef *tmp117, TMP117_ConvTi
         case TMP117_CONV_16_S:    requestedTime = 16000.0;break;
         default:                  requestedTime = 0.0;    break;
     }
+    
+    tmp117->_requestedTime = requestedTime; 
+
     // Validate that the total cycle time is not less than the active conversion time
     if (requestedTime < activeTime)
     {
-        printf("ERROR: Requested conversion time (%.1f ms) is less than active conversion time (%.1f ms)\r\n", 
-               requestedTime, activeTime);
         return HAL_ERROR;
     }
     // Read the current CONFIGURATION register (Address: 0x01)
@@ -605,7 +589,7 @@ HAL_StatusTypeDef TMP117_SetConvTime(TMP117_HandleTypeDef *tmp117, TMP117_ConvTi
   * @param  highLimit High limit temperature threshold in degrees Celsius (°C).
   * @retval None
   */
-void TMP117_SetHighLimit(TMP117_HandleTypeDef *tmp117, double highLimit)
+void TMP117_SetHighLimit_C(TMP117_HandleTypeDef *tmp117, double highLimit)
 {
     // One LSB equals 7.8125 m°C = 0.0078125 °C.
     // Convert the double value in °C to 16-bit signed integer (two's complement)
@@ -624,7 +608,7 @@ void TMP117_SetHighLimit(TMP117_HandleTypeDef *tmp117, double highLimit)
   * @param  lowLimit Low limit temperature threshold in degrees Celsius (°C).
   * @retval None
   */
-void TMP117_SetLowLimit(TMP117_HandleTypeDef *tmp117, double lowLimit)
+void TMP117_SetLowLimit_C(TMP117_HandleTypeDef *tmp117, double lowLimit)
 {
     // One LSB equals 7.8125 m°C = 0.0078125 °C.
     // Convert the double value in °C to 16-bit signed integer (two's complement)

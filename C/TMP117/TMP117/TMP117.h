@@ -163,9 +163,11 @@ typedef enum
 
 typedef struct
 {
-    I2C_HandleTypeDef         *hi2c;
-    uint8_t                   _devAddress;
-    uint8_t                  _samples;
+    I2C_HandleTypeDef       *hi2c;
+    uint8_t                 _devAddress;
+    uint8_t                 _samples;
+    double                  _activeTime;
+    double                  _requestedTime;
 } TMP117_HandleTypeDef;
 
 
@@ -175,8 +177,8 @@ uint16_t TMP117_ReadRegister(TMP117_HandleTypeDef *tmp117, uint8_t registerAddre
 
 /* Configuration Getters */
 uint16_t TMP117_GetConfiguration(TMP117_HandleTypeDef *tmp117);
-uint16_t TMP117_GetTempHighLimit(TMP117_HandleTypeDef *tmp117);
-uint16_t TMP117_GetTempLowLimit(TMP117_HandleTypeDef *tmp117);
+uint16_t TMP117_GetTempHighLimitReg(TMP117_HandleTypeDef *tmp117);
+uint16_t TMP117_GetTempLowLimitReg(TMP117_HandleTypeDef *tmp117);
 uint16_t TMP117_GetDeviceId(TMP117_HandleTypeDef *tmp117);
 uint16_t TMP117_GetEepromUnlock(TMP117_HandleTypeDef *tmp117);
 uint16_t TMP117_GetEeprom1(TMP117_HandleTypeDef *tmp117);
@@ -185,19 +187,17 @@ uint16_t TMP117_GetEeprom3(TMP117_HandleTypeDef *tmp117);
 
 /* Diagnostic Readings */
 _Bool TMP117_EepromBusyFlag(TMP117_HandleTypeDef *tmp117);
-double TMP117_GetHighLimitTemp(TMP117_HandleTypeDef *tmp117);
-double TMP117_GetLowLimitTemp(TMP117_HandleTypeDef *tmp117);
+double TMP117_GetHighLimitTemp_C(TMP117_HandleTypeDef *tmp117);
+double TMP117_GetLowLimitTemp_C(TMP117_HandleTypeDef *tmp117);
 double TMP117_CheckTemperature(uint16_t value);
-double TMP117_GetTemperatureCelsius(TMP117_HandleTypeDef *tmp117);
 
 /* EEPROM Control */
-void TMP117_SetLockUnlockEeprom(TMP117_HandleTypeDef *tmp117, TMP117_LockUnlock_HandleTypeDef lockUnlock);
 HAL_StatusTypeDef TMP117_SetEeprom1(TMP117_HandleTypeDef *tmp117, uint16_t data);
 HAL_StatusTypeDef TMP117_SetEeprom2(TMP117_HandleTypeDef *tmp117, uint16_t data);
 HAL_StatusTypeDef TMP117_SetEeprom3(TMP117_HandleTypeDef *tmp117, uint16_t data);
 
 /* Initialization & Control */
-void TMP117_Init(TMP117_HandleTypeDef *tmp117, I2C_HandleTypeDef *i2c);
+void TMP117_Init(TMP117_HandleTypeDef *tmp117, I2C_HandleTypeDef *i2c, uint8_t devAddress);
 void TMP117_ResetDevice(TMP117_HandleTypeDef *tmp117);
 void TMP117_SetAlertPinFunction(TMP117_HandleTypeDef *tmp117, TMP117_DRALERT_TypeDef pinFunction);
 void TMP117_SetAlertPinPolarity(TMP117_HandleTypeDef *tmp117, TMP117_AlertPinPol_TypeDef polarity);
@@ -211,8 +211,8 @@ _Bool TMP117_IsDataReady(TMP117_HandleTypeDef *tmp117);
 _Bool TMP117_IsLowAlertSet(TMP117_HandleTypeDef *tmp117);
 _Bool TMP117_IsHighAlertSet(TMP117_HandleTypeDef *tmp117);
 HAL_StatusTypeDef TMP117_SetConvTime(TMP117_HandleTypeDef *tmp117, TMP117_ConvTime_TypeDef convTime);
-void TMP117_SetHighLimit(TMP117_HandleTypeDef *tmp117, double highLimit);
-void TMP117_SetLowLimit(TMP117_HandleTypeDef *tmp117, double lowLimit);
+void TMP117_SetHighLimit_C(TMP117_HandleTypeDef *tmp117, double highLimit);
+void TMP117_SetLowLimit_C(TMP117_HandleTypeDef *tmp117, double lowLimit);
 double TMP117_GetTemperature_C(TMP117_HandleTypeDef *tmp117);
 
 #endif
