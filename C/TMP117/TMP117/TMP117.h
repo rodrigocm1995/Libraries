@@ -111,10 +111,10 @@
 
 typedef enum
 {
-  TMP117_CONTINUOUS_MODE                   		= 0x0000,
-  TMP117_SHUTDOWN_MODE                          = 0x0400,
-  TMP117_ONE_SHOT_MODE                   		= 0x0C00,
-}TMP117_Mode_HandleTypeDef;
+  TMP117_CONTINUOUS_MODE                   		= 0x0U,
+  TMP117_SHUTDOWN_MODE                          = 0x1U,
+  TMP117_ONE_SHOT_MODE                   		= 0x3U,
+}TMP117_Mode_TypeDef;
 
 typedef enum
 {

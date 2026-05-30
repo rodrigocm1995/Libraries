@@ -161,59 +161,6 @@ uint16_t TMP117_GetEeprom3(TMP117_HandleTypeDef *tmp117)
 	return data;
 }
 
-/**
-  *@brief Read the HIGH_Alert bit of the CONFIGURATION register
-  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@retval	Boolean data
-  *High Alert Flag:
-  *(+) 1: Set when the conversion result is higher than the high limit
-  *(+) 0: Cleared on read of configuration register
-  *Therm mode:
-  *(+) 1: Set when the conversion result is higher than the therm limit
-  *(+) 0: Cleared when the conversion result is lower than the hysteresis
-*/
-_Bool TMP117_HighAlertFlag(TMP117_HandleTypeDef *tmp117)
-{
-	value = TMP117_GetConfiguration(tmp117);
-	valueFlag = CHECK_BIT(value, 15);
-	return valueFlag;
-}
-
-/**
-  *@brief Read the LOW_Alert bit of the CONFIGURATION register
-  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@retval	Boolean data
-  *Low Alert Flag:
-  *(+) 1: Set when the conversion result is lower than the low limit
-  *(+) 0: Cleared when the configuration register is read
-  *Therm mode: Always set to 0
-*/
-_Bool TMP117_LowAlertFlag(TMP117_HandleTypeDef *tmp117)
-{
-	value = TMP117_GetConfiguration(tmp117);
-	valueFlag = CHECK_BIT(value, 14);
-	return valueFlag;
-}
-
-/**
-  *@brief Read the Data_Ready bit of the CONFIGURATION register.
-  *This flag indicates that the conversion is complete and the temperature register
-  *can be read. Every time the temperature register or configuration register is read,
-  *this bit is cleared. This bit is set at the end of the conversion when the temperature
-  *register is updated. Data_Ready can be monitored on the ALERT pin by setting bit 2 of
-  *the CONFIGURATION register.
-  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@retval	Boolean data
-*/
-_Bool TMP117_DataReadyFlag(TMP117_HandleTypeDef *tmp117)
-{
-	value = TMP117_GetConfiguration(tmp117);
-	valueFlag = CHECK_BIT(value, 13);
-	return valueFlag;
-}
 
 /**
   *@brief Read the EEPROM_Busy bit of the CONFIGURATION register.
@@ -227,33 +174,6 @@ _Bool TMP117_EepromBusyFlag(TMP117_HandleTypeDef *tmp117)
 	value = TMP117_GetConfiguration(tmp117);
 	valueFlag = CHECK_BIT(value, 12);
 	return valueFlag;
-}
-
-/**
-  *@brief Allows the user to set conversion mode of the CONFIGURATION register.
-  * The TMP117 can be configured to operate in various modes by using the MOD[1:0] bits.
-  * These modes provide flexibility to operate the device in the most power efficient
-  * way necessary for the intended application.
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@param mode:
-  *(+) TMP117_CONTINUOUS_MODE: The device continuously performs temperature conversions.
-  *		Each conversion consists of an active conversion period followed by an standby
-  *		period. The duration of the active conversion period and standby period can be configured
-  *		using the CONV[2:0] and AVG[1:0] bits in the CONFIGURATION register.
-  *(+) TMP117_SHUTDOWN_MODE: When the MOD[1:0] bits are set to 01 in the CONFIGURATION register,
-  *		the device instantly aborts the currently running conversion and enters a low-power
-  *		shutdown mode.
-  *(+) TMP117_ONE_SHOT_MODE: The TMP117 will run a temperature conversion referred to as a one-
-  *		shot conversion. After the device completes a one-shot conversion, the device goes to
-  *		the low-power shutdown mode.
-  *@retval	none
-*/
-void TMP117_SetMode(TMP117_HandleTypeDef *tmp117, TMP117_Mode_HandleTypeDef mode)
-{
-	uint16_t result = TMP117_GetConfiguration(tmp117);
-	result = (result & TMP117_MODE_MASK) | mode;
-	TMP117_WriteRegister(tmp117, TMP117_CONFIGURATION_REG, result);
 }
 
 /**
@@ -291,31 +211,6 @@ void TMP117_SetConversionCycle(TMP117_HandleTypeDef *tmp117, TMP117_ConversionCy
 	result = (result & TMP117_CONV_CYCLE_MASK) | conv;
 	TMP117_WriteRegister(tmp117, TMP117_CONFIGURATION_REG, result);
 }
-
-/**
-  *@brief Allows the user to set conversion averaging mode bits of the CONFIGURATION register.
-  * Determines the number of conversion results that are collected and averaged before updating the
-  * temperature register. The average is an accumulated average and not a running average.
-  *@param tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@param avg:
-  *(+) TMP117_NO_AVERAGING
-  *(+) TMP117_AVG_8_CONV
-  *(+) TMP117_AVG_32_CONV
-  *(+) TMP117_AVG_64_CONV
-  *@retval	none
-*/
-void TMP117_SetAverage(TMP117_HandleTypeDef *tmp117, TMP117_Average_HandleTypeDef avg)
-{
-	uint16_t result = TMP117_GetConfiguration(tmp117);
-	result = (result & TMP117_AVERAGE_MASK) | avg;
-	TMP117_WriteRegister(tmp117, TMP117_CONFIGURATION_REG, result);
-}
-
-
-
-
-
 
 
 /**
@@ -504,30 +399,6 @@ void TMP117_Init(TMP117_HandleTypeDef *tmp117, I2C_HandleTypeDef *i2c)
 
 
 /**
-  * @brief  Check if is the conversion is complete and the temperature
-  *         register can be read (DATAREADY bit is set).
-  * @note   Data Ready Flag bit clears under the following conditions:
-  *         1) Reading the Configuration register. 
-  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure.
-  * @retval 1: New conversion is ready and data is available
-  *         0: Conversion is not ready or read error occurred
-  */
-_Bool TMP117_IsConversionReady(TMP117_HandleTypeDef *tmp117)
-{
-    // Read the Configuration Register (Address: 0x01)
-    uint16_t regValue = TMP117_ReadRegister(tmp117, TMP117_CONFIGURATION_REG);
-
-    // Mask the value to isolate bit 13 (DATAREADY_Mask)
-    // If the bit is set, (regValue & INA236_CVRF) will be 0x2000 (which is != 0)
-    if ((regValue & TMP117_DATAREADY) != 0U)
-    {
-        return 1; 
-    }
-
-    return 0;
-}
-
-/**
   * @brief  Reset the TMP117 device registers to their default factory values
   * @note   This function writes the soft reset bit (bit 15) directly to the 
   *         Configuration Register (0x01). The RST bit is self-clearing once 
@@ -591,7 +462,7 @@ void TMP117_SetAlertPinPolarity(TMP117_HandleTypeDef *tmp117, TMP117_AlertPinPol
     // Clear the POL bit using the mask (bit 3)
     regValue &= ~TMP117_POL_Mask;
 
-    // Set the new mode by shifting it to its position (POL_Pos = 3)
+    // Set the new POL by shifting it to its position (POL_Pos = 3)
     // and protecting it with the mask
     regValue |= (polarity << TMP117_POL_Pos) & TMP117_POL_Mask;
 
@@ -624,7 +495,7 @@ void TMP117_SetThermAlertMode(TMP117_HandleTypeDef *tmp117, TMP117_ThermAlertMod
     // Clear the TnA bit using the mask (bit 4)
     regValue &= ~TMP117_TnA_Mask;
 
-    // Set the new mode by shifting it to its position (TnA_Pos = 4)
+    // Set the new TnA by shifting it to its position (TnA_Pos = 4)
     // and protecting it with the mask
     regValue |= (polarity << TMP117_TnA_Pos) & TMP117_TnA_Mask;
 
@@ -650,12 +521,152 @@ void TMP117_SetAverage(TMP117_HandleTypeDef *tmp117, TMP117_Avg_TypeDef avg)
 {
     // Read the current CONFIGURATION register (Address: 0x01)
     uint16_t regValue = TMP117_ReadRegister(tmp117, TMP117_CONFIGURATION_REG);
+
     // Clear the AVG bits using the mask (bits 5 and 6)
     regValue &= ~TMP117_AVG_Mask;
+
     // Set the new AVG by shifting it to its position (AVG_Pos = 5)
     // and protecting it with the mask
     regValue |= (avg << TMP117_AVG_Pos) & TMP117_AVG_Mask;
+
     // Write the resulting value back to the register
     // (Nota: Corregido INA236_WriteRegister por TMP117_WriteRegister)
     TMP117_WriteRegister(tmp117, TMP117_CONFIGURATION_REG, regValue);
+}
+
+/**
+  * @brief  Configure the operating mode of the TMP117 sensor (Continuous, Shutdown, or One-Shot)
+  * @note   This function modifies the MOD bits (bits 10 and 11) of the Configuration Register (0x01).
+  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified TMP117.
+  * @param  mode Selected operating mode.
+  *              This parameter can be one of the following values:
+  *              @arg TMP117_CONTINUOUS_MODE: Continuous conversion mode
+  *              @arg TMP117_SHUTDOWN_MODE: Low-power shutdown mode
+  *              @arg TMP117_ONE_SHOT_MODE: One-shot conversion mode
+  * @retval None
+  */
+void TMP117_SetMode(TMP117_HandleTypeDef *tmp117, TMP117_Mode_TypeDef mode)
+{
+    // Read the current CONFIGURATION register (Address: 0x01)
+    uint16_t regValue = TMP117_ReadRegister(tmp117, TMP117_CONFIGURATION_REG);
+
+    // Clear the MODE bits using the mask (bits 10 and 11)
+    regValue &= ~TMP117_MOD_Mask;
+
+    // Set the new MODE by shifting it to its position (MOD_Pos = 10)
+    // and protecting it with the mask
+    regValue |= (mode << TMP117_MOD_Pos) & TMP117_MOD_Mask;
+
+    // Write the resulting value back to the register
+    TMP117_WriteRegister(tmp117, TMP117_CONFIGURATION_REG, regValue);
+}
+
+/**
+  * @brief  Check if the TMP117 EEPROM is currently busy
+  * @note   This function reads the EEPROM_Busy flag (bit 12) of the Configuration Register (0x01).
+  *         This flag indicates whether the EEPROM is busy during programming or during power-up.
+  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified TMP117.
+  * @retval _Bool Status of the EEPROM:
+  *         - 1 (true): EEPROM is busy programming or loading values.
+  *         - 0 (false): EEPROM is idle and ready.
+  */
+_Bool TMP117_IsEEPROMBusy(TMP117_HandleTypeDef *tmp117)
+{
+    // Read the Configuration Register (Address: 0x01)
+    uint16_t regValue = TMP117_ReadRegister(tmp117, TMP117_CONFIGURATION_REG);
+
+    // Mask the value to isolate bit 12 (TMP117_EEPROMBUSY)
+    // If the bit is set, (regValue & TMP117_EEPROMBUSY) will be 0x1000 (which is != 0)
+    if ((regValue & TMP117_EEPROMBUSY) != 0U)
+    {
+        return 1; 
+    }
+
+    return 0;
+}
+
+/**
+  * @brief  Check if new temperature conversion data is ready to be read
+  * @note   This function reads the DataReady flag (bit 13) of the Configuration Register (0x01).
+  *         Every time the temperature register or the configuration register is read, this bit is 
+  *         automatically cleared. The bit is set at the end of a conversion when the temperature 
+  *         register is updated. Data ready can also be monitored on the physical ALERT pin 
+  *         by configuring the DR/Alert bit (bit 2) accordingly.
+  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified TMP117.
+  * @retval _Bool Data ready status:
+  *         - 1 (true): New conversion data is ready and can be read.
+  *         - 0 (false): No new data is ready (or flag has been cleared by a read operation).
+  */
+_Bool TMP117_IsDataReady(TMP117_HandleTypeDef *tmp117)
+{
+    // Read the Configuration Register (Address: 0x01)
+    uint16_t regValue = TMP117_ReadRegister(tmp117, TMP117_CONFIGURATION_REG);
+    // Mask the value to isolate bit 13 (TMP117_DATAREADY)
+    // If the bit is set, (regValue & TMP117_DATAREADY) will be 0x2000 (which is != 0)
+    if ((regValue & TMP117_DATAREADY) != 0U)
+    {
+        return 1; 
+    }
+    return 0;
+}
+
+/**
+  * @brief  Check if the temperature has fallen below the low limit (Low Alert flag)
+  * @note   This function reads the LOW_Alert flag (bit 14) of the Configuration Register (0x01).
+  *         In Alert mode, this flag is set to 1 when the conversion result is lower than the low limit 
+  *         register, and is cleared to 0 when the configuration register is read.
+  *         In Thermostat (Therm) mode, this flag is always set to 0.
+  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified TMP117.
+  * @retval _Bool Low alert status:
+  *         - 1 (true): Temperature is lower than the configured low limit (in Alert mode).
+  *         - 0 (false): No low alert has occurred, the configuration register was read, or device is in Therm mode.
+  */
+_Bool TMP117_IsLowAlertSet(TMP117_HandleTypeDef *tmp117)
+{
+    // Read the Configuration Register (Address: 0x01)
+    uint16_t regValue = TMP117_ReadRegister(tmp117, TMP117_CONFIGURATION_REG);
+
+    // Mask the value to isolate bit 14 (TMP117_LOWALERT)
+    // If the bit is set, (regValue & TMP117_LOWALERT) will be 0x4000 (which is != 0)
+    if ((regValue & TMP117_LOWALERT) != 0U)
+    {
+        return 1; 
+    }
+
+    return 0;
+}
+
+/**
+  * @brief  Check if the temperature has exceeded the high limit (High Alert flag)
+  * @note   This function reads the HIGH_Alert flag (bit 15) of the Configuration Register (0x01).
+  *         The behavior of this flag depends on the configured mode of operation (Alert vs Therm):
+  *         - In Alert mode: The flag is set to 1 when the conversion result is higher than the high limit 
+  *           and is automatically cleared to 0 when the configuration register is read.
+  *         - In Thermostat (Therm) mode: The flag is set to 1 when the conversion result is higher than 
+  *           the high limit (therm limit) and is cleared to 0 only when the result falls below the 
+  *           low limit (which acts as the hysteresis threshold).
+  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified TMP117.
+  * @retval _Bool High alert status:
+  *         - 1 (true): Temperature has exceeded the high limit threshold.
+  *         - 0 (false): Temperature is within normal limits, the configuration register was read (Alert mode), 
+  *           or the temperature has dropped below the hysteresis threshold (Therm mode).
+  */
+_Bool TMP117_IsHighAlertSet(TMP117_HandleTypeDef *tmp117)
+{
+    // Read the Configuration Register (Address: 0x01)
+    uint16_t regValue = TMP117_ReadRegister(tmp117, TMP117_CONFIGURATION_REG);
+
+    // Mask the value to isolate bit 15 (TMP117_HIGHALERT)
+    // If the bit is set, (regValue & TMP117_HIGHALERT) will be 0x8000 (which is != 0)
+    if ((regValue & TMP117_HIGHALERT) != 0U)
+    {
+        return 1; 
+    }
+
+    return 0;
 }
