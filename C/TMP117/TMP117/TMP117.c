@@ -232,6 +232,7 @@ void TMP117_Init(TMP117_HandleTypeDef *tmp117, I2C_HandleTypeDef *i2c, uint8_t d
     TMP117_SetAlertPinPolarity(tmp117, TMP117_ALERT_ACTIVE_HIGH);
     TMP117_SetThermAlertMode(tmp117, TMP117_ALERT_MODE);
     TMP117_SetAverage(tmp117, TMP117_32_SAMPLES);
+    TMP117_SetConvTime(tmp117, TMP117_CONV_4_S);
     TMP117_SetMode(tmp117, TMP117_CONTINUOUS_MODE);  
 }
 
