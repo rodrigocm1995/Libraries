@@ -303,7 +303,7 @@ void INA236_SetBusUnderLimit(INA236_HandleTypeDef *ina236, INA236_BusUnderLimitA
 void INA236_SetBusOverLimit(INA236_HandleTypeDef *ina236, INA236_BusOverLimitAlert_TypeDef bolAlert);
 void INA236_SetShuntUnderLimit(INA236_HandleTypeDef *ina236, INA236_ShuntUnderLimitAlert_TypeDef sulAlert);
 void INA236_SetShuntOverLimit(INA236_HandleTypeDef *ina236, INA236_ShuntOverLimitAlert_TypeDef solAlert);
-void INA236_SetAlertLimit(INA236_HandleTypeDef *ina236, int16_t alertLimit);
+void INA236_SetAlertLimit(INA236_HandleTypeDef *ina236, double alertLimit);
 
 /* Diagnostic Readings */
 _Bool INA236_IsConversionReady(INA236_HandleTypeDef *ina236);

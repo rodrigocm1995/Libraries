@@ -78,7 +78,7 @@ HAL_StatusTypeDef INA236_Init(INA236_HandleTypeDef *ina236, I2C_HandleTypeDef *i
     // Bind physical communication parameters to local handler
     ina236->hi2c = i2c;
     ina236->_devAddress = devAddress;
-    ina236->_alertType = INA236_SOL;
+    ina236->_alertType = INA236_SOL_ALERT;
 
     // Verify if the sensor is physically responding on the I2C bus
     if (HAL_I2C_IsDeviceReady(ina236->hi2c, (ina236->_devAddress) << 1, INA236_TRIALS, HAL_MAX_DELAY) != HAL_OK)
@@ -884,5 +884,5 @@ void INA236_SetAlertLimit(INA236_HandleTypeDef *ina236, double alertLimit)
     }
 
     // Write the raw value to the Alert Limit Register (Address: 0x07)
-    INA236_WriteRegister(ina236, INA236_ALERT_LIMIT_REGISTER, rawValue)
+    INA236_WriteRegister(ina236, INA236_ALERT_LIMIT_REGISTER, rawValue);
 }
