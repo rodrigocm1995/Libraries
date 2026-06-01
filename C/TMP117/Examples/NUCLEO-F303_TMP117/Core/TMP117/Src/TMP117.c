@@ -207,13 +207,20 @@ double TMP117_GetLowLimitTemp_C(TMP117_HandleTypeDef *tmp117)
 }
 
 /**
-  * @brief  Create a new instance of the tmp117 temperature sensor setting the I²C port and slave address
-  *         Set the Configuration Register with default value 0220h.
-  * @param  tmp117 points to an object of type Tmp117_t 
-  * @param  hi2c Pointer to a I2C_HandleTypeDef structure that contains
-  *                the configuration information for the specified I2C.
-  * @param  registerAddress Target device address: The device 7 bits address value
-  * @retval none
+  * @brief  Initialize the TMP117 sensor handle and configure default operating settings.
+  * @details This function binds the physical I2C hardware bus and device address to the
+  *          driver handle. Afterwards, it applies the default configuration settings:
+  *          - Configures the ALERT pin to act as a Data Ready flag.
+  *          - Sets the ALERT pin electrical polarity to Active High.
+  *          - Configures the alert pin trigger mode to Therm/Alert mode.
+  *          - Sets the internal hardware averaging filter to 32 samples.
+  *          - Puts the sensor into continuous conversion mode.
+  * @param  tmp117 Pointer to a TMP117_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified TMP117.
+  * @param  i2c Pointer to a HAL I2C_HandleTypeDef structure representing the
+  *             physical I2C bus interface.
+  * @param  devAddress The 7-bit physical I2C device address of the sensor.
+  * @retval None
   */
 void TMP117_Init(TMP117_HandleTypeDef *tmp117, I2C_HandleTypeDef *i2c, uint8_t devAddress)
 {
@@ -225,6 +232,7 @@ void TMP117_Init(TMP117_HandleTypeDef *tmp117, I2C_HandleTypeDef *i2c, uint8_t d
     TMP117_SetAlertPinPolarity(tmp117, TMP117_ALERT_ACTIVE_HIGH);
     TMP117_SetThermAlertMode(tmp117, TMP117_ALERT_MODE);
     TMP117_SetAverage(tmp117, TMP117_32_SAMPLES);
+    TMP117_SetConvTime(tmp117, TMP117_CONV_4_S);
     TMP117_SetMode(tmp117, TMP117_CONTINUOUS_MODE);  
 }
 
