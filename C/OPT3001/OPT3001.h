@@ -58,14 +58,51 @@
 #define OPT3001_MANUFACTURER_ID_REG		0x7E
 #define OPT3001_DEVICE_ID_REG			0x7F
 
-// Mask
-#define OPT3001_RANGE_NUMBER_MASK		0x0FFF
-#define OPT3001_CONV_TIME_MASK			0xF7FF
-#define OPT3001_CONV_MODE_MASK			0xF9FF
-#define OPT3001_LATCH_STYLE_MASK		0xFFEF
-#define OPT3001_INT_POLARITY_MASK		0xFFF7
-#define OPT3001_EXP_MASK				0xFFFB
-#define OPT3001_FAULT_COUNT_MASK		0xFFFC
+/*******************  Bits definition for CONFIGURATION register  ******************/
+#define OPT3001_FC_Pos                  (0U)
+#define OPT3001_FC_Mask                 (0x3U << OPT3001_FC_Pos)
+#define OPT3001_FC                      OPT3001_FC_Mask
+
+#define OPT3001_ME_Pos                  (2U)
+#define OPT3001_ME_Mask                 (0x1U << OPT3001_ME_Pos)
+#define OPT3001_ME                      OPT3001_ME_Mask
+
+#define OPT3001_POL_Pos                 (3U)
+#define OPT3001_POL_Mask                (0x1U << OPT3001_POL_Pos)
+#define OPT3001_POL                     OPT3001_POL_Mask
+
+#define OPT3001_L_Pos                   (4U)
+#define OPT3001_L_Mask                  (0x1U << OPT3001_L_Pos)
+#define OPT3001_L                       OPT3001_L_Mask
+
+#define OPT3001_FL_Pos                  (5U)
+#define OPT3001_FL_Mask                 (0x1U << OPT3001_FL_Pos)
+#define OPT3001_FL                      OPT3001_FL_Mask
+
+#define OPT3001_FH_Pos                  (6U)
+#define OPT3001_FH_Mask                 (0x1U << OPT3001_FH_Pos)
+#define OPT3001_FH                      OPT3001_FH_Mask
+
+#define OPT3001_CRF_Pos                 (7U)
+#define OPT3001_CRF_Mask                (0x1U << OPT3001_CRF_Pos)
+#define OPT3001_CRF                     OPT3001_CRF_Mask
+
+#define OPT3001_OVF_Pos                 (8U)
+#define OPT3001_OVF_Mask                (0x1U << OPT3001_OVF_Pos)
+#define OPT3001_OVF                     OPT3001_OVF_Mask
+
+#define OPT3001_M_Pos                   (9U)
+#define OPT3001_M_Mask                  (0x3U << OPT3001_M_Pos)
+#define OPT3001_M                       OPT3001_M_Mask
+
+#define OPT3001_CT_Pos                  (10U)
+#define OPT3001_CT_Mask                 (0x1U << OPT3001_CT_Pos)
+#define OPT3001_CT                      OPT3001_CT_Mask
+
+#define OPT3001_RN_Pos                  (12U)
+#define OPT3001_RN_Mask                 (0xFU << OPT3001_RN_Pos)
+#define OPT3001_RN                      OPT3001_RN_Mask
+
 
 typedef enum
 {
