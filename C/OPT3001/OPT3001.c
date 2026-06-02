@@ -334,26 +334,170 @@ void OPT3001_SetExponentFIeld(OPT3001_HandleTypeDef *opt3001, OPT3001_MaskExp_Ha
 
 
 /**
-  *@brief Allows the user to set the Fault Count inside the CONFIGURATION register.
-  *			The fault count field instructs the device as to how many consecutive fault events are
-  *			required to trigger the interrupt reporting mechanisms: the INT pin, the flag high field
-  *			(FH), and flag low field (FL).
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@param faultCount:
-  *(+) OPT3001_ONE_FAULT_COUNT
-  *(+) OPT3001_TWO_FAULT_COUNTS  
-  *(+) OPT3001_FOUR_FAULT_COUNTS
-  *(+) OPT3001_EIGHT_FAULT_COUNTS
-  *@retval	none
-*/
-void OPT3001_SetFaultCount(OPT3001_HandleTypeDef *opt3001, OPT3001_FaultCount_HandleTypeDef faultCount)
+  * @brief  Allows the user to set the Fault Count inside the CONFIGURATION register.
+  *         The fault count field instructs the device as to how many consecutive fault events are
+  *         required to trigger the interrupt reporting mechanisms: the INT pin, the flag high field
+  *         (FH), and flag low field (FL). The fault events are described in the latch field (L),
+  *         flag high field (FH), and flag low field (FL) descriptions.
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration information for connecting to the sensor.
+  * @param  faultCount Specifies the number of consecutive fault events required.
+  *                  This parameter can be one of the following values:
+  *                  @arg OPT3001_ONE_FAULT_COUNT: One fault count (default, 00b)
+  *                  @arg OPT3001_TWO_FAULT_COUNTS: Two fault counts (01b)
+  *                  @arg OPT3001_FOUR_FAULT_COUNTS: Four fault counts (10b)
+  *                  @arg OPT3001_EIGHT_FAULT_COUNTS: Eight fault counts (11b)
+  * @retval None
+  */
+void OPT3001_SetFaultCount(OPT3001_HandleTypeDef *opt3001, OPT3001_FaultCount_TypeDef faultCount)
 {
-	value = OPT3001_GetConfiguration(opt3001);
-	value = (value & OPT3001_FAULT_COUNT_MASK) | faultCount;
-	OPT3001_WriteRegister(opt3001, OPT3001_CONFIGURATION_REG, value);
+    // Read the current CONFIGURATION register
+    uint16_t regValue = OPT3001_ReadRegister(opt3001, OPT3001_CONFIGURATION_REG);
+
+    // Clear the FC bits using the mask (bits 0 and 1)
+    regValue &= ~OPT3001_FC_Mask;
+
+    // Set the new FC value
+    regValue |= (faultCount << OPT3001_FC_Pos) & OPT3001_FC_Mask;
+
+    //Write the resulting value back to the register
+    OPT3001_WriteRegister(opt3001, OPT3001_CONFIGURATION_REG, regValue);
 }
 
+/**
+  * @brief  Configure the polarity or active state of the interrupt (INT) pin.
+  *         The polarity field controls whether the INT pin behaves as an active low or
+  *         active high output. When configured as active low (default), the pin pulls low
+  *         upon an interrupt event. When configured as active high, the pin becomes high
+  *         impedance (allowing an external pull-up resistor to pull it high) upon an interrupt event.
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration information for connecting to the sensor.
+  * @param  polarity Selected polarity for the INT pin.
+  *                  This parameter can be one of the following values:
+  *                  @arg OPT3001_ALERT_ACTIVE_LOW: INT pin reports active low (default, 0x0)
+  *                  @arg OPT3001_ALERT_ACTIVE_HIGH: INT pin reports active high (0x1)
+  * @retval None
+  */
+void OPT3001_SetAlertPinPolarity(OPT3001_HandleTypeDef *opt3001, OPT3001_AlertPinPol_TypeDef polarity)
+{
+    // Read the current CONFIGURATION register
+    uint16_t regValue = OPT3001_ReadRegister(opt3001, OPT3001_CONFIGURATION_REG);
+
+    // Clear the POL bit using the mask (bit 3)
+    regValue &= ~OPT3001_POL_Mask;
+
+    // Set the new POL by shifting it to its position (POL_Pos = 3)
+    // and protecting it with the mask
+    regValue |= (polarity << OPT3001_POL_Pos) & OPT3001_POL_Mask;
+
+    //Write the resulting value back to the register
+    OPT3001_WriteRegister(opt3001, OPT3001_CONFIGURATION_REG, regValue);
+}
+
+/**
+  * @brief  Configure the interrupt latch behavior (Latch field L) of the interrupt system.
+  *         This field controls whether the interrupt reporting mechanisms (the INT pin, 
+  *         flag high FH, and flag low FL) behave in a hysteresis-style or latch-style.
+  *         - In hysteresis mode (default), the interrupt reporting deasserts automatically 
+  *           when the measured light returns within the limits.
+  *         - In latch mode, the interrupt reporting remains asserted (latched) until the 
+  *           Configuration register is read.
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration information for connecting to the sensor.
+  * @param  latchMode Selected latch behavior for the interrupt system.
+  *                  This parameter can be one of the following values:
+  *                  @arg OPT3001_LATCH_HYSTERESIS: Hysteresis mode (default, 0x0)
+  *                  @arg OPT3001_LATCH_LATCHED: Latch mode (0x1)
+  * @retval None
+  */
+void OPT3001_SetLatchMode(OPT3001_HandleTypeDef *opt3001, OPT3001_Latch_TypeDef latchMode)
+{
+    // Read the current CONFIGURATION register
+    uint16_t regValue = OPT3001_ReadRegister(opt3001, OPT3001_CONFIGURATION_REG);
+
+    // Clear the L bit using the mask (bit 4)
+    regValue &= ~OPT3001_L_Mask;
+
+    // Set the new L value by shifting it to its position (L_Pos = 4)
+    // and protecting it with the mask
+    regValue |= (latchMode << OPT3001_L_Pos) & OPT3001_L_Mask;
+
+    // Write the resulting value back to the register
+    OPT3001_WriteRegister(opt3001, OPT3001_CONFIGURATION_REG, regValue);
+}
+
+/**
+  * @brief  Read the Flag Low (FL) field from the CONFIGURATION register.
+  *         This read-only field identifies that the result of a conversion is smaller 
+  *         than a specified level of interest. FL is set to 1 when the light level is 
+  *         smaller than the value in the low-limit register (address 02h) for a consecutive 
+  *         number of measurements defined by the fault count field (FC[1:0]).
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration information for connecting to the sensor.
+  * @retval _Bool Status of the Flag Low (FL) field.
+  *         - 1 (true): The conversion result is smaller than the low limit threshold.
+  *         - 0 (false): The conversion result is not smaller than the low limit threshold.
+  */
+_Bool OPT3001_IsFlagLowReady(OPT3001_HandleTypeDef *opt3001)
+{
+    // Read the Configuration Register (Address: 0x01)
+    uint16_t regValue = OPT3001_ReadRegister(opt3001, OPT3001_CONFIGURATION_REG);
+
+    // If the bit is set, (regValue & OPT3001_FL) will be 0x0020 (which is != 0)
+    if ((regValue & OPT3001_FL) != 0U)
+    {
+        return 1; 
+    }
+    return 0;
+}
+
+/**
+  * @brief  Read the Flag High (FH) field from the CONFIGURATION register.
+  *         This read-only field identifies that the result of a conversion is larger 
+  *         than a specified level of interest. FH is set to 1 when the light level is 
+  *         larger than the value in the high-limit register (address 03h) for a consecutive 
+  *         number of measurements defined by the fault count field (FC[1:0]).
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration information for connecting to the sensor.
+  * @retval _Bool Status of the Flag High (FH) field.
+  *         - 1 (true): The conversion result is larger than the high limit threshold.
+  *         - 0 (false): The conversion result is not larger than the high limit threshold.
+  */
+_Bool OPT3001_IsFlagHighReady(OPT3001_HandleTypeDef *opt3001)
+{
+    // Read the Configuration Register (Address: 0x01)
+    uint16_t regValue = OPT3001_ReadRegister(opt3001, OPT3001_CONFIGURATION_REG);
+    // If the bit is set, (regValue & OPT3001_FH) will be 0x0040 (which is != 0)
+    if ((regValue & OPT3001_FH) != 0U)
+    {
+        return 1; 
+    }
+    return 0;
+}
+
+/**
+  * @brief  Read the Conversion Ready Field (CRF) from the CONFIGURATION register.
+  *         This read-only field indicates when a conversion completes. The field is set to 1 
+  *         at the end of a conversion and is cleared (set to 0) when the configuration register 
+  *         is subsequently read or written with any value except one containing the shutdown mode.
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration information for connecting to the sensor.
+  * @retval _Bool Status of the Conversion Ready Field (CRF).
+  *         - 1 (true): A conversion is complete and new data is ready in the RESULT register.
+  *         - 0 (false): A conversion is not yet complete or the flag was cleared by a previous read/write.
+  */
+_Bool OPT3001_IsConversionReady(OPT3001_HandleTypeDef *opt3001)
+{
+    // Read the Configuration Register (Address: 0x01)
+    uint16_t regValue = OPT3001_ReadRegister(opt3001, OPT3001_CONFIGURATION_REG);
+    
+    // If the bit is set, (regValue & OPT3001_CRF) will be 0x0080 (which is != 0)
+    if ((regValue & OPT3001_CRF) != 0U)
+    {
+        return 1; 
+    }
+    return 0;
+}
 
 /**
   *@brief Set the low limit lux .

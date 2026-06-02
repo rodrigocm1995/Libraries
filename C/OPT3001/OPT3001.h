@@ -136,15 +136,15 @@ typedef enum
 
 typedef enum
 {
-	OPT3001_HYSTERESIS_STYLE			= 0x0000,
-	OPT3001_WINDOW_STYLE				= 0x0000,
-}OPT3001_LatchStyle_HandleTypeDef;
+    OPT3001_LATCH_HYSTERESIS            = 0x0U, /* Hysteresis style: INT pin and flags clear when returning to normal limits */
+    OPT3001_LATCH_LATCHED               = 0x1U, /* Latch style: INT pin and flags remain asserted until Configuration register is read */
+} OPT3001_Latch_TypeDef;
 
 typedef enum
 {
-	OPT3001_INT_ACTIVE_LOW				= 0x0000,
-	OPT3001_INT_ACTIVE_HIGH				= 0x0008,
-}OPT3001_Int_Polarity_HandleTypeDef;
+	OPT3001_ALERT_ACTIVE_LOW			= 0x0U,
+	OPT3001_ALERT_ACTIVE_HIGH			= 0x1U,
+}OPT3001_AlertPinPol_TypeDef;
 
 
 typedef enum
@@ -155,11 +155,11 @@ typedef enum
 
 typedef enum
 {
-	OPT3001_ONE_FAULT_COUNT				= 0x0000,
-	OPT3001_TWO_FAULT_COUNTS			= 0x0001,
-	OPT3001_FOUR_FAULT_COUNTS			= 0x0002,
-	OPT3001_EIGHT_FAULT_COUNTS			= 0x0003,
-}OPT3001_FaultCount_HandleTypeDef;
+	OPT3001_ONE_FAULT_COUNT				= 0x0U,
+	OPT3001_TWO_FAULT_COUNTS			= 0x1U,
+	OPT3001_FOUR_FAULT_COUNTS			= 0x2U,
+	OPT3001_EIGHT_FAULT_COUNTS			= 0x3U,
+}OPT3001_FaultCount_TypeDef;
 
 typedef struct
 {
@@ -238,7 +238,7 @@ void OPT3001_SetIntPolarity(OPT3001_HandleTypeDef *opt3001, OPT3001_Int_Polarity
 
 void OPT3001_SetExponentFIeld(OPT3001_HandleTypeDef *opt3001, OPT3001_MaskExp_HandleTypeDef maskExp);
 
-void OPT3001_SetFaultCount(OPT3001_HandleTypeDef *opt3001, OPT3001_FaultCount_HandleTypeDef faultCount);
+void OPT3001_SetFaultCount(OPT3001_HandleTypeDef *opt3001, OPT3001_FaultCount_TypeDef faultCount);
 
 /*
 ===========================================================================================================================
