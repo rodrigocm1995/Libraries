@@ -1,0 +1,8 @@
+{
+	"InstallScripts" : 
+	[
+		"D:/STM32_Projects/NUCLEO-F303_INA236/build/Debug/cmake_install.cmake",
+		"D:/STM32_Projects/NUCLEO-F303_INA236/build/Debug/cmake/stm32cubemx/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
