@@ -76,12 +76,12 @@ void OPT3001_Init(OPT3001_HandleTypeDef *opt3001, I2C_HandleTypeDef *i2c, uint8_
 	opt3001->_devAddress = devAddress;
 	opt3001->hi2c = i2c;
 
-	OPT3001_SetRangeNumber(opt3001, OPT3001_AUTOMATIC_RANGE);
-	OPT3001_SetConversionTime(opt3001, OPT3001_CT_800_MS);
-	OPT3001_SetConversionMode(opt3001, OPT3001_CONTINUOUS_CONVERSION);
-	OPT3001_SetLatchStyle(opt3001, OPT3001_HYSTERESIS_STYLE);
-	OPT3001_SetIntPolarity(opt3001, OPT3001_INT_ACTIVE_LOW);
-	OPT3001_SetExponentFIeld(opt3001, OPT3001_MASK_EXP_ACTIVE);
+    OPT3001_SetFaultCount(opt3001, OPT3001_TWO_FAULT_COUNTS);
+    OPT3001_SetAlertPinPolarity(opt3001, OPT3001_ALERT_ACTIVE_LOW);
+    OPT3001_SetLatchMode(opt3001, OPT3001_LATCH_HYSTERESIS);
+    OPT3001_SetMode(opt3001, OPT3001_CONTINUOUS_MODE);
+    OPT3001_SetConvTime(opt3001, OPT3001_800_MS);
+	OPT3001_SetRangeNumber(opt3001, OPT3001_AUTOMATIC_RANGE);	
 }
 
 /**
@@ -308,7 +308,7 @@ _Bool OPT3001_IsLowLimitFlagSet(OPT3001_HandleTypeDef *opt3001)
   *         This read-only field identifies that the result of a conversion is larger 
   *         than a specified level of interest. FH is set to 1 when the light level is 
   *         larger than the value in the high-limit register (address 03h) for a consecutive 
-  *         number of measurements defined by the fault count field (FC[1:0]).
+  *         number of measurements defined by the fault count field (   FC[1:0]).
   * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
   *         the configuration information for connecting to the sensor.
   * @retval _Bool Status of the Flag High (FH) field.
@@ -383,7 +383,7 @@ _Bool OPT3001_IsOverflowFlagSet(OPT3001_HandleTypeDef *opt3001)
 /**
   * @brief  Configure the operating mode of the OPT3001 sensor (Continuous, Shutdown, or One-Shot)
   * @note   This function modifies the M bits (bits 9 and 10) of the Configuration Register (0x01).
-  * @param  tmp117 Pointer to a OPT3001_HandleTypeDef structure that contains
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
   *                the configuration and driver state for the specified OPT3001.
   * @param  mode Selected operating mode.
   *              This parameter can be one of the following values:
@@ -392,7 +392,7 @@ _Bool OPT3001_IsOverflowFlagSet(OPT3001_HandleTypeDef *opt3001)
   *              @arg OPT3001_SHUTDOWN_MODE: One-shot conversion mode
   * @retval None
   */
-void TMP117_SetMode(OPT3001_HandleTypeDef *opt3001, OPT3001_Mode_TypeDef mode)
+void OPT3001_SetMode(OPT3001_HandleTypeDef *opt3001, OPT3001_Mode_TypeDef mode)
 {
     // Read the current CONFIGURATION register (Address: 0x01)
     uint16_t regValue = OPT3001_ReadRegister(opt3001, OPT3001_CONFIGURATION_REG);
@@ -535,10 +535,10 @@ void OPT3001_SetLowLimit(OPT3001_HandleTypeDef *opt3001, double lowLimit)
   * @brief  Set the higher comparison limit threshold in lux.
   *         This function determines the best full-scale range exponent for the target limit,
   *         calculates the corresponding 12-bit mantissa, combines both fields into a raw
-  *         16-bit register layout, and writes it to the LOW_LIMIT register.
+  *         16-bit register layout, and writes it to the HIGH_LIMIT register.
   * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
   *         the configuration and state information for the sensor.
-  * @param  highLimit The target low limit threshold in lux.
+  * @param  highLimit The target high limit threshold in lux.
   * @retval None
   */
 void OPT3001_SetHighLimit(OPT3001_HandleTypeDef *opt3001, double highLimit)
@@ -554,8 +554,8 @@ void OPT3001_SetHighLimit(OPT3001_HandleTypeDef *opt3001, double highLimit)
     // Combine exponent (shifted to bits 15:12) and mantissa (bits 11:0)
 	uint16_t rawValue = (exponent << OPT3001_RN_Pos) | (uint16_t)mantissa;
 
-    // Write the raw value to the LOW_LIMIT register
-	OPT3001_WriteRegister(opt3001, OPT3001_LOW_LIMIT_REG, rawValue);
+    // Write the raw value to the HIGH_LIMIT register (fixed: writing to HIGH_LIMIT_REG instead of LOW_LIMIT_REG)
+	OPT3001_WriteRegister(opt3001, OPT3001_HIGH_LIMIT_REG, rawValue);
 }
 
 /**
@@ -623,8 +623,8 @@ double OPT3001_GetLowLimit_Lux(OPT3001_HandleTypeDef *opt3001)
   */
 double OPT3001_GetLux(OPT3001_HandleTypeDef *opt3001)
 {
-    // Read the raw 16-bit value from the RESULT register
-    uint8_t rawResult = OPT3001_GetResultReg(opt3001);
+    // Read the raw 16-bit value from the RESULT register (fixed: declared as uint16_t instead of uint8_t)
+    uint16_t rawResult = OPT3001_GetResultReg(opt3001);
 
     // Extract the exponent value by masking and shifting to its position (bit 12)
     uint8_t exponent = (rawResult & OPT3001_E) >> OPT3001_E_Pos;
