@@ -2,336 +2,188 @@
 #include "math.h"
 #include "OPT3001.h"
 
-volatile uint16_t value;
+/* Static helper prototypes */
+static void OPT3001_SetInnerRange(OPT3001_HandleTypeDef *opt3001, double limit);
 
 /**
-  * @brief  Write an amount of data to the sensor in blocking mode to a specific memory address
-  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *                the configuration information for connecting to the sensor.
-  * @param  registerAddres
-  * @param  MemAddress  sensor's internal memory address
-  * @param  MemAddSize Size of internal memory address
-  * @param  value Data to be sent
-  * @retval HAL_status
+  * @brief  Write a 16-bit value to a specific register of the OPT3001 device
+  * @param  ina236 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified INA236.
+  * @param  registerAddress Internal register address of the OPT3001 to write to
+  * @param  value The 16-bit data word to be written into the target register
+  * @retval HAL_OK: Write operation completed successfully
+  * @retval HAL_ERROR: Device is not ready or write operation failed
   */
 HAL_StatusTypeDef OPT3001_WriteRegister(OPT3001_HandleTypeDef *opt3001, uint8_t registerAddress, uint16_t value)
 {
-	uint8_t address[2]; // All writable registers are two bytes
-	uint8_t isDeviceReady;
-	
-	address[0] = (value >> 8) & 0xFF;
-	address[1] = (value >> 0) & 0xFF;
-	
-	isDeviceReady = HAL_I2C_IsDeviceReady(opt3001->hi2c, (opt3001->devAddress) << 1, OPT3001_TRIALS, 100);
-	
-	if (isDeviceReady == HAL_OK)
-	{
-		HAL_I2C_Mem_Write(opt3001->hi2c, (opt3001->devAddress) << 1, registerAddress, I2C_MEMADD_SIZE_8BIT, (uint8_t *)address, I2C_MEMADD_SIZE_16BIT, 100);
-		return HAL_OK;
-	}
-	else{
-		return HAL_ERROR;
-	}
+    uint8_t address[2];
+    HAL_StatusTypeDef isDeviceReady;
+    // Split the 16-bit value into two bytes (MSB first)
+    address[0] = (value >> 8) & 0xFF;
+    address[1] = (value >> 0) & 0xFF;
+  
+    // Check if the device is ready on the I2C bus
+    isDeviceReady = HAL_I2C_IsDeviceReady(opt3001->hi2c, (opt3001->_devAddress) << 1, OPT3001_TRIALS, HAL_MAX_DELAY);
+    if (isDeviceReady == HAL_OK)
+    {
+        // Write the 16-bit register to the device
+        if (HAL_I2C_Mem_Write(opt3001->hi2c, (opt3001->_devAddress) << 1, registerAddress, I2C_MEMADD_SIZE_8BIT, (uint8_t*)address, I2C_MEMADD_SIZE_16BIT, HAL_MAX_DELAY) == HAL_OK)
+        {
+        return HAL_OK;
+        }
+    }
+    return HAL_ERROR;
 }
 
 /**
-  * @brief  Read an amount of data from the sensor in blocking mode from a specific memory address
-  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *                the configuration information for connecting to the sensor.
-  * @param  registerAddress Target device address: The device 7 bits address value
-  * @retval unsigned int 16-bit value of the register
+  * @brief  Read a 16-bit value from a specific register of the INA236 device
+  * @param  ina236 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified INA236.
+  * @param  registerAddress Internal register address of the INA236 to read from
+  * @return 16-bit data read from register, or 0xFFFF if the operation fails
   */
 uint16_t OPT3001_ReadRegister(OPT3001_HandleTypeDef *opt3001, uint8_t registerAddress)
 {
-  uint8_t registerResponse[2];
-  uint8_t isDeviceReady;
+  uint8_t registerResponse[2] = {0}; 
+  HAL_StatusTypeDef isDeviceReady;   
 
-  isDeviceReady = HAL_I2C_IsDeviceReady(opt3001->hi2c, (opt3001->devAddress) << 1, OPT3001_TRIALS, 100);
+  // Check if the device is ready on the I2C bus
+  isDeviceReady = HAL_I2C_IsDeviceReady(opt3001->hi2c, (opt3001->_devAddress) << 1, OPT3001_TRIALS, HAL_MAX_DELAY);
 
   if (isDeviceReady == HAL_OK)
   {
-    HAL_I2C_Mem_Read(opt3001->hi2c, (opt3001->devAddress) << 1, registerAddress, I2C_MEMADD_SIZE_8BIT, registerResponse, sizeof(registerResponse), 100);
-    return ((registerResponse[0] << 8) | registerResponse[1]);
+    // Read the 2-byte register data from the device
+    if (HAL_I2C_Mem_Read(opt3001->hi2c, (opt3001->_devAddress) << 1, registerAddress, I2C_MEMADD_SIZE_8BIT, registerResponse, sizeof(registerResponse), HAL_MAX_DELAY) == HAL_OK)
+    {
+        // Combine MSB and LSB to return the 16-bit value
+        return (uint16_t)((registerResponse[0] << 8) | registerResponse[1]);
+    }    
   }
-  else
-  {
-	  return HAL_ERROR;
-  }
+  // Returns a maximum control value (0xFFFF) indicating a communication error
+  return 0xFFFF;
 }
 
 /**
-  *@brief Get the current value of the RESULT register.
-  *			This register contains the result of the most recent light to 
-			digital conversion. This 16-bit register has two fields: a
-			4-bit exponent and a 12-bit mantissa.
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@retval	unsigned integer 16-bit data
-  *(+) [15:12] = Exponent
-  *(+) [11:0]  = Fractional Result
-*/
-uint16_t OPT3001_GetResult(OPT3001_HandleTypeDef *opt3001)
+  * @brief  Create a new instance of the OPT3001 ambient light sensor setting the I²C port and slave address
+  * @param  opt3001 Pointer to a MCP9808_HandleTypeDef structure that contains
+  *                the configuration information for connecting to the sensor.
+  * @param  hi2c Pointer to a I2C_HandleTypeDef structure that contains
+  *                the configuration information for the specified I2C.
+  * @retval none
+  */
+void OPT3001_Init(OPT3001_HandleTypeDef *opt3001, I2C_HandleTypeDef *i2c, uint8_t devAddress)
 {
-	uint16_t data = 0;
-	data = OPT3001_ReadRegister(opt3001, OPT3001_RESULT_REG);
-	return data;
+	opt3001->_devAddress = devAddress;
+	opt3001->hi2c = i2c;
+
+	OPT3001_SetRangeNumber(opt3001, OPT3001_AUTOMATIC_RANGE);
+	OPT3001_SetConversionTime(opt3001, OPT3001_CT_800_MS);
+	OPT3001_SetConversionMode(opt3001, OPT3001_CONTINUOUS_CONVERSION);
+	OPT3001_SetLatchStyle(opt3001, OPT3001_HYSTERESIS_STYLE);
+	OPT3001_SetIntPolarity(opt3001, OPT3001_INT_ACTIVE_LOW);
+	OPT3001_SetExponentFIeld(opt3001, OPT3001_MASK_EXP_ACTIVE);
 }
 
 /**
-  *@brief Get the current value of the CONFIGURATION register.
-  *			This register controls the major operational modes of the device.
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@retval	unsigned integer 16-bit data
-*/
+  * @brief  Read the raw value of the RESULT register.
+  *         This register contains the result of the most recent light-to-digital conversion.
+  *         The 16-bit register consists of two fields:
+  *         - Bits [15:12] (E[3:0]): Exponent. Straight binary coding of the range scaling factor.
+  *         - Bits [11:0]  (R[11:0]): Fractional result. Straight binary coding (zero to full-scale).
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration information for connecting to the sensor.
+  * @retval uint16_t Raw 16-bit value read from the RESULT register.
+  */
+uint16_t OPT3001_GetResultReg(OPT3001_HandleTypeDef *opt3001)
+{
+	uint16_t regValue = OPT3001_ReadRegister(opt3001, OPT3001_RESULT_REG);
+	
+    return regValue;
+}
+
+/**
+  * @brief  Read the current value of the CONFIGURATION register.
+  *         This register controls the major operational modes of the device, 
+  *         such as the full-scale range selection, conversion integration time,
+  *         mode of conversion operation, interrupt flags, latching style, 
+  *         alert pin polarity, and fault count parameters.
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration information for connecting to the sensor.
+  * @retval uint16_t The raw 16-bit contents of the CONFIGURATION register.
+  */
 uint16_t OPT3001_GetConfiguration(OPT3001_HandleTypeDef *opt3001)
 {
-	uint16_t data = 0;
-	data = OPT3001_ReadRegister(opt3001, OPT3001_CONFIGURATION_REG);
-	return data;
+	uint16_t regValue = OPT3001_ReadRegister(opt3001, OPT3001_CONFIGURATION_REG);
+
+    return regValue;
 }
 
 /**
-  *@brief Get the current value of the LOW_LIMIT register.
-  *			This register sets the lower comparison limit for the interrupt reporting
-  *			mechanisms: the INT pin, the flag high field (FH), and floag low field (FL)
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@retval	unsigned integer 16-bit data
-*/
-uint16_t OPT3001_GetLowLimit(OPT3001_HandleTypeDef *opt3001)
+  * @brief  Read the raw 16-bit value of the LOW_LIMIT register.
+  *         This register sets the lower comparison threshold limit for the interrupt 
+  *         reporting mechanisms: the INT pin, the flag high field (FH), and the flag 
+  *         low field (FL).
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration information for connecting to the sensor.
+  * @retval uint16_t Raw 16-bit value of the LOW_LIMIT register.
+  */
+uint16_t OPT3001_GetLowLimitReg(OPT3001_HandleTypeDef *opt3001)
 {
-	uint16_t data = 0;
-	data = OPT3001_ReadRegister(opt3001, OPT3001_LOW_LIMIT_REG);
-	return data;
+	
+	uint16_t regValue = OPT3001_ReadRegister(opt3001, OPT3001_LOW_LIMIT_REG);
+	
+    return regValue;
 }
 
 /**
-  *@brief Get the current value of the HIGH_LIMIT register.
-  *			This register sets the higher comparison limit for the interrupt reporting
-  *			mechanisms: the INT pin, the flag high field (FH), and floag low field (FL)
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@retval	unsigned integer 16-bit data
-*/
-uint16_t OPT3001_GetHighLimit(OPT3001_HandleTypeDef *opt3001)
+  * @brief  Read the raw 16-bit value of the HIGH_LIMIT register.
+  *         This register sets the upper comparison threshold limit for the interrupt 
+  *         reporting mechanisms: the INT pin, the flag high field (FH), and the flag 
+  *         low field (FL).
+  *         Its format is identical to the result register, consisting of a 4-bit exponent 
+  *         (bits [15:12], HE[3:0]) and a 12-bit mantissa (bits [11:0], TH[11:0]).
+  *         Note that the comparison with this register is unaffected by the Mask Enable (ME) bit.
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration information for connecting to the sensor.
+  * @retval uint16_t Raw 16-bit value of the HIGH_LIMIT register.
+  */
+uint16_t OPT3001_GetHighLimitReg(OPT3001_HandleTypeDef *opt3001)
 {
-	uint16_t data = 0;
-	data = OPT3001_ReadRegister(opt3001, OPT3001_HIGH_LIMIT_REG);
-	return data;
+	uint16_t regValue = OPT3001_ReadRegister(opt3001, OPT3001_HIGH_LIMIT_REG);
+
+    return regValue;
 }
 
 /**
-  *@brief Get the manufacturer ID. This register is intended to help uniquely identify
-  *			the device.
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@retval	unsigned integer 16-bit data - 5449h
-*/
+  * @brief  Read the Manufacturer ID register.
+  *         This read-only register is used to uniquely identify the device manufacturer.
+  *         For Texas Instruments, this register always returns 0x5449 (which corresponds 
+  *         to the ASCII characters 'T' and 'I').
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration information for connecting to the sensor.
+  * @retval uint16_t The 16-bit manufacturer ID value (0x5449).
+  */
 uint16_t OPT3001_GetManufacturerId(OPT3001_HandleTypeDef *opt3001)
 {
-	uint16_t data = 0;
-	data = OPT3001_ReadRegister(opt3001, OPT3001_MANUFACTURER_ID_REG);
-	return data;
+    uint16_t regValue = OPT3001_ReadRegister(opt3001, OPT3001_MANUFACTURER_ID_REG);
+	
+    return regValue;
 }
 
 /**
-  *@brief Get the Device ID. This register is intended to help uniquely identify
-  *			the device.
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@retval	unsigned integer 16-bit data - 3001h
-*/
+  * @brief  Read the Device ID register.
+  *         This read-only register is used to uniquely identify the device model.
+  *         For the OPT3001, this register always returns 0x3001.
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration information for connecting to the sensor.
+  * @retval uint16_t The 16-bit device ID value (0x3001).
+  */
 uint16_t OPT3001_GetDeviceId(OPT3001_HandleTypeDef *opt3001)
 {
-	uint16_t data = 0;
-	data = OPT3001_ReadRegister(opt3001, OPT3001_DEVICE_ID_REG);
-	return data;
+	uint16_t regValue = OPT3001_ReadRegister(opt3001, OPT3001_DEVICE_ID_REG);
+	
+    return regValue;
 }
-
-/**
-  *@brief Allows the user to set the range number inside the CONFIGURATION register.
-  *			The range number field selects the full-scale lux range of the device.
-  *			The format if this field is the same as the result register  exponent
-  *			field (E[3:0]).
-  *			This register controls the major operational modes of the device.
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@param range: selects the full scale lux range
-  *(+) OPT3001_40_95_LUX
-  *(+) OPT3001_81_90_LUX  
-  *(+) OPT3001_163_80_LUX 
-  *(+) OPT3001_327_60_LUX 
-  *(+) OPT3001_655_20_LUX 
-  *(+) OPT3001_1310_40_LUX 
-  *(+) OPT3001_2620_80_LUX 
-  *(+) OPT3001_5241_60_LUX 
-  *(+) OPT3001_10483_20_LUX 
-  *(+) OPT3001_20966_40_LUX 
-  *(+) OPT3001_41932_80_LUX 
-  *(+) OPT3001_83865_60_LUX 
-  *(+) OPT3001_AUTOMATIC_RANGE 
-  *@retval	none
-*/
-void OPT3001_SetRangeNumber(OPT3001_HandleTypeDef *opt3001, OPT3001_RangeNumber_HandleTypeDef range)
-{
-	uint16_t val = OPT3001_GetConfiguration(opt3001);
-	val = (val & OPT3001_RANGE_NUMBER_MASK) | range;
-	OPT3001_WriteRegister(opt3001, OPT3001_CONFIGURATION_REG, val);
-}
-
-/**
-  *@brief Allows the user to set conversion time field inside the CONFIGURATION register.
-  *			The conversion time determines the length of the light to digital conversion
-  *			process. The choices are 100 ms and 800 ms. A longer integration time allows
-  * 		for a lower noise measurement.
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@param convTime:
-  *(+) OPT3001_CT_100_MS
-  *(+) OPT3001_CT_800_MS  
-  *@retval	none
-*/
-void OPT3001_SetConversionTime(OPT3001_HandleTypeDef *opt3001, OPT3001_ConversionTime_HandleTypeDef convTime)
-{
-	value = OPT3001_GetConfiguration(opt3001);
-	value = (value & OPT3001_CONV_TIME_MASK) | convTime;
-	OPT3001_WriteRegister(opt3001, OPT3001_CONFIGURATION_REG, value);
-}
-
-/**
-  *@brief Allows the user to set the mode of conversion operation field inside the
-  *			CONFIGURATION register.
-  *			The mode of conversion operation fields controls whether the device is
-  *			operating in continuous conversion, single-shot, or low-power shutdown
-  *			mode. The default is 00b (shutdown mode), such that upon power-up, the
-  *			device only consumes operational level power after appropriately programming
-  *			the device.
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@param mode:
-  *(+) OPT3001_SHUTDOWN
-  *(+) OPT3001_SINGLE_SHOT
-  *(+) OPT3001_CONTINUOUS_CONVERSION
-  *@retval	none
-*/
-void OPT3001_SetConversionMode(OPT3001_HandleTypeDef *opt3001, OPT3001_ConversionMode_HandleTypeDef mode)
-{
-	value = OPT3001_GetConfiguration(opt3001);
-	value = (value & OPT3001_CONV_MODE_MASK) | mode;
-	OPT3001_WriteRegister(opt3001, OPT3001_CONFIGURATION_REG, value);
-}
-
-/**
-  *@brief Get the overflow flag field inside the CONFIGURATION register.
-  *			The overflow flag field indicates when an overflow condition occurs in the data conversion
-  *			process, typically because the light illuminating the device exceeds the programmed full-scale
-  *			scale range of the device. Under this condition OVF is the to 1, otherwise OVF remains at 0.
-  *			The field is reevaluated on every measurement.
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@retval	boolean data
-*/
-_Bool OPT3001_OverflowFlag(OPT3001_HandleTypeDef *opt3001)
-{
-	_Bool overflowFlag;
-	value = OPT3001_GetConfiguration(opt3001);
-	overflowFlag = CHECK_BIT(value,8);
-	return overflowFlag;
-}
-
-/**
-  *@brief Get the conversion ready field inside the CONFIGURATION register.
-  *			The conversion ready field indicates when a conversion completes. The field is set to 1 at the
-  *			end of a conversion and is cleared (set to 0) when the configuration register is subsequently
-  *			read or written with any value except one containing the shutdown mode.
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@retval	boolean data
-*/
-_Bool OPT3001_ConversionReadyFlag(OPT3001_HandleTypeDef *opt3001)
-{
-	_Bool convReadyFlag;
-	value = OPT3001_GetConfiguration(opt3001);
-	convReadyFlag = CHECK_BIT(value, 7);
-	return convReadyFlag;
-}
-
-/**
-  *@brief Identifies if the result of a conversion is larger that a specified level of interest.
-			FH is set to 1 when the result is larger than the level in the high-limit register.
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@retval	boolean data
-*/
-_Bool OPT3001_HighLimitFlag(OPT3001_HandleTypeDef *opt3001)
-{
-	_Bool highLimitFlag;
-	value = OPT3001_GetConfiguration(opt3001);
-	highLimitFlag = CHECK_BIT(value, 6);
-	return highLimitFlag;
-}
-
-/**
-  *@brief Identifies if the result of a conversion is lower that a specified level of interest.
-			FL is set to 1 when the result is larger than the level in the low-limit register.
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@retval	boolean data
-*/
-_Bool OPT3001_LowLimitFlag(OPT3001_HandleTypeDef *opt3001)
-{
-	_Bool lowLimitFlag;
-	value = OPT3001_GetConfiguration(opt3001);
-	lowLimitFlag = CHECK_BIT(value, 5);
-	return lowLimitFlag;
-}
-
-/**
-  *@brief Allows the user to set the latch style inside the CONFIGURATION register.
-  *			The mode of conversion operation fields controls whether the device is
-  *			operating in continuous conversion, single-shot, or low-power shutdown
-  *			mode. The default is 00b (shutdown mode), such that upon power-up, the
-  *			device only consumes operational level power after appropriately programming
-  *			the device.
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@param latch:
-  *(+) OPT3001_HYSTERESIS_STYLE
-  *(+) OPT3001_WINDOW_STYLE  
-  *@retval	none
-*/
-void OPT3001_SetLatchStyle(OPT3001_HandleTypeDef *opt3001, OPT3001_LatchStyle_HandleTypeDef latch)
-{
-	value = OPT3001_GetConfiguration(opt3001);
-	value = (value & OPT3001_LATCH_STYLE_MASK) | latch;
-	OPT3001_WriteRegister(opt3001, OPT3001_CONFIGURATION_REG, value);
-}
-
-/**
-  *@brief Allows the user to set the INT polarity inside the CONFIGURATION register.
-  *			The polarity field controls the polarity or active state of the INT pin.
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@param pol:
-  *(+) OPT3001_INT_ACTIVE_LOW
-  *(+) OPT3001_INT_ACTIVE_HIGH  
-  *@retval	none
-*/
-void OPT3001_SetIntPolarity(OPT3001_HandleTypeDef *opt3001, OPT3001_Int_Polarity_HandleTypeDef pol)
-{
-	value = OPT3001_GetConfiguration(opt3001);
-	value = (value & OPT3001_INT_POLARITY_MASK) | pol;
-	OPT3001_WriteRegister(opt3001, OPT3001_CONFIGURATION_REG, value);
-}
-
-void OPT3001_SetExponentFIeld(OPT3001_HandleTypeDef *opt3001, OPT3001_MaskExp_HandleTypeDef maskExp)
-{
-	value = OPT3001_GetConfiguration(opt3001);
-	value = (value & OPT3001_EXP_MASK) | maskExp;
-	OPT3001_WriteRegister(opt3001, OPT3001_CONFIGURATION_REG, value);
-}
-
 
 /**
   * @brief  Allows the user to set the Fault Count inside the CONFIGURATION register.
@@ -438,7 +290,7 @@ void OPT3001_SetLatchMode(OPT3001_HandleTypeDef *opt3001, OPT3001_Latch_TypeDef 
   *         - 1 (true): The conversion result is smaller than the low limit threshold.
   *         - 0 (false): The conversion result is not smaller than the low limit threshold.
   */
-_Bool OPT3001_IsFlagLowReady(OPT3001_HandleTypeDef *opt3001)
+_Bool OPT3001_IsLowLimitFlagSet(OPT3001_HandleTypeDef *opt3001)
 {
     // Read the Configuration Register (Address: 0x01)
     uint16_t regValue = OPT3001_ReadRegister(opt3001, OPT3001_CONFIGURATION_REG);
@@ -463,7 +315,7 @@ _Bool OPT3001_IsFlagLowReady(OPT3001_HandleTypeDef *opt3001)
   *         - 1 (true): The conversion result is larger than the high limit threshold.
   *         - 0 (false): The conversion result is not larger than the high limit threshold.
   */
-_Bool OPT3001_IsFlagHighReady(OPT3001_HandleTypeDef *opt3001)
+_Bool OPT3001_IsHighLimitFlagSet(OPT3001_HandleTypeDef *opt3001)
 {
     // Read the Configuration Register (Address: 0x01)
     uint16_t regValue = OPT3001_ReadRegister(opt3001, OPT3001_CONFIGURATION_REG);
@@ -500,216 +352,288 @@ _Bool OPT3001_IsConversionReady(OPT3001_HandleTypeDef *opt3001)
 }
 
 /**
-  *@brief Set the low limit lux .
-  * The formula to translate the register value into lux is given by:
-  * lux = 0.01 * (2^E[3:0]) x R[11:0]
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@param lowLimit
-  *@retval	unsigned integer 16-bit data
-*/
-HAL_StatusTypeDef OPT3001_SetLowLimit(OPT3001_HandleTypeDef *opt3001, double lowLimit)
+  * @brief  Read the Overflow Flag (OVF) from the CONFIGURATION register.
+  *         This read-only field indicates if the input light level has exceeded the full-scale range:
+  *         - Manual Range (RN[3:0] < 12): OVF can be set by a temporary light spike that overloads 
+  *           the integrating ADC (even if the final result register is within range), reporting a 
+  *           possible conversion error.
+  *         - Auto Range (RN[3:0] = 12): OVF is only set if the input light exceeds the maximum 
+  *           physical range of the device. The sensor automatically scales up its range and retries 
+  *           conversions until no overflow occurs or maximum scale is reached.
+  *         The flag is re-evaluated on every measurement.
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration information for connecting to the sensor.
+  * @retval _Bool Status of the Overflow Flag (OVF).
+  *         - 1 (true): An overflow condition occurred during the conversion.
+  *         - 0 (false): No overflow occurred.
+  */
+_Bool OPT3001_IsOverflowFlagSet(OPT3001_HandleTypeDef *opt3001)
 {
-	uint16_t exponent;
-	uint16_t mantissa;
-	
-	if (OPT3001_GetInnerRange(opt3001, lowLimit) == HAL_OK)
-	{
-		exponent = ((opt3001->innerExponent) & 0xF000) >> 12;
-		mantissa = lowLimit / (0.01 * pow(2, exponent));
-
-		value = (opt3001->innerExponent) + mantissa;
-		OPT3001_WriteRegister(opt3001, OPT3001_LOW_LIMIT_REG, value);
-		return HAL_OK;
-	}
-	else
-	{
-		return HAL_ERROR;
-	}
+    // Read the Configuration Register (Address: 0x01)
+    uint16_t regValue = OPT3001_ReadRegister(opt3001, OPT3001_CONFIGURATION_REG);
+    
+    // If the bit is set, (regValue & OPT3001_OVF) will be 0x0100 (which is != 0)
+    if ((regValue & OPT3001_OVF) != 0U)
+    {
+        return 1; 
+    }
+    return 0;
 }
 
 /**
-  *@brief Set the high limit lux .
-  * The formula to translate the register value into lux is given by:
-  * lux = 0.01 * (2^E[3:0]) x R[11:0]
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@param lowLimit
-  *@retval	HAL_Status
-*/
-HAL_StatusTypeDef OPT3001_SetHighLimit(OPT3001_HandleTypeDef *opt3001, double highLimit)
+  * @brief  Configure the operating mode of the OPT3001 sensor (Continuous, Shutdown, or One-Shot)
+  * @note   This function modifies the M bits (bits 9 and 10) of the Configuration Register (0x01).
+  * @param  tmp117 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *                the configuration and driver state for the specified OPT3001.
+  * @param  mode Selected operating mode.
+  *              This parameter can be one of the following values:
+  *              @arg OPT3001_CONTINUOUS_MODE: Continuous conversion mode
+  *              @arg OPT3001_SINGLE_SHOT_MODE: Low-power shutdown mode
+  *              @arg OPT3001_SHUTDOWN_MODE: One-shot conversion mode
+  * @retval None
+  */
+void TMP117_SetMode(OPT3001_HandleTypeDef *opt3001, OPT3001_Mode_TypeDef mode)
 {
-	uint16_t exponent;
-	uint16_t mantissa;
-	
-	if (OPT3001_GetInnerRange(opt3001, highLimit) == HAL_OK)
-	{
-		exponent = ((opt3001->innerExponent) & 0xF000) >> 12;
-		mantissa = highLimit / (0.01 * pow(2, exponent));
+    // Read the current CONFIGURATION register (Address: 0x01)
+    uint16_t regValue = OPT3001_ReadRegister(opt3001, OPT3001_CONFIGURATION_REG);
 
-		value = (opt3001->innerExponent) + mantissa;
-		OPT3001_WriteRegister(opt3001, OPT3001_HIGH_LIMIT_REG, value);
-		return HAL_OK;
-	}
-	else
-	{
-		return HAL_ERROR;
-	}
+    // Clear the MODE bits using the mask (bits 9 and 10)
+    regValue &= ~OPT3001_M_Mask;
+
+    // Set the new MODE by shifting it to its position (M_Pos = 9)
+    // and protecting it with the mask
+    regValue |= (mode << OPT3001_M_Pos) & OPT3001_M_Mask;
+
+    // Write the resulting value back to the register
+    OPT3001_WriteRegister(opt3001, OPT3001_CONFIGURATION_REG, regValue);
 }
 
+/**
+  * @brief  Configure the conversion (integration) time for the light measurement.
+  *         The conversion time determines the duration of the light-to-digital conversion process.
+  *         A longer integration time (800 ms) allows for a lower noise measurement, resulting 
+  *         in higher precision.
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration information for connecting to the sensor.
+  * @param  convTime Selected conversion integration time.
+  *                  This parameter can be one of the following values:
+  *                  @arg OPT3001_100_MS: 100 milliseconds integration time (0x0)
+  *                  @arg OPT3001_800_MS: 800 milliseconds integration time (0x1)
+  * @retval None
+  */
+void OPT3001_SetConvTime(OPT3001_HandleTypeDef *opt3001, OPT3001_ConvTime_TypeDef convTime)
+{
+    // Read the current CONFIGURATION register
+    uint16_t regValue = OPT3001_ReadRegister(opt3001, OPT3001_CONFIGURATION_REG);
+
+    // Clear the OPT3001_CT bit using the mask bit 11
+    regValue &= ~OPT3001_CT_Mask;
+
+    // Set the new CT by shifting it to its position (CT_Pos = 11)
+    // and protecting it with the mask
+    regValue |= (convTime << OPT3001_CT_Pos) & OPT3001_CT_Mask;
+
+    //Write the resulting value back to the register
+    OPT3001_WriteRegister(opt3001, OPT3001_CONFIGURATION_REG, regValue);
+}
 
 /**
-  *@brief Get the current value of lux perceived by the sensor.
-  * The formula to translate the register value into lux is given by:
-  * lux = 0.01 * (2^E[3:0]) x R[11:0]
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@retval	double value of lux
-*/
+  * @brief  Configure the full-scale range (Range Number RN field) in the CONFIGURATION register.
+  *         This field selects the full-scale lux range of the device. It can be set manually 
+  *         to a specific range or set to automatic scaling mode, where the device automatically 
+  *         adjusts the range based on ambient light levels to optimize resolution and prevent overflow.
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration information for connecting to the sensor.
+  * @param  range Selected full-scale range.
+  *               This parameter can be one of the following values:
+  *               @arg OPT3001_40_95_LUX: Full-scale range up to 40.95 lux (0x0)
+  *               @arg OPT3001_81_90_LUX: Full-scale range up to 81.90 lux (0x1)
+  *               @arg OPT3001_163_80_LUX: Full-scale range up to 163.80 lux (0x2)
+  *               @arg OPT3001_327_60_LUX: Full-scale range up to 327.60 lux (0x3)
+  *               @arg OPT3001_655_20_LUX: Full-scale range up to 655.20 lux (0x4)
+  *               @arg OPT3001_1310_40_LUX: Full-scale range up to 1310.40 lux (0x5)
+  *               @arg OPT3001_2620_80_LUX: Full-scale range up to 2620.80 lux (0x6)
+  *               @arg OPT3001_5241_60_LUX: Full-scale range up to 5241.60 lux (0x7)
+  *               @arg OPT3001_10483_20_LUX: Full-scale range up to 10483.20 lux (0x8)
+  *               @arg OPT3001_20966_40_LUX: Full-scale range up to 20966.40 lux (0x9)
+  *               @arg OPT3001_41932_80_LUX: Full-scale range up to 41932.80 lux (0xA)
+  *               @arg OPT3001_83865_60_LUX: Full-scale range up to 83865.60 lux (0xB)
+  *               @arg OPT3001_AUTOMATIC_RANGE: Automatic scaling mode (default, 0xC)
+  * @retval None
+  */
+void OPT3001_SetRangeNumber(OPT3001_HandleTypeDef *opt3001, OPT3001_FullScaleRange_TypeDef range)
+{
+    // Read the current CONFIGURATION register
+	uint16_t regValue = OPT3001_ReadRegister(opt3001, OPT3001_CONFIGURATION_REG);
+
+    // Clear the RN bits using the mask (bits 12, 13, 14 and 15)
+    regValue &= ~OPT3001_RN_Mask;
+
+    // Set the new RN value
+    regValue |= (range << OPT3001_RN_Pos) & OPT3001_RN_Mask;
+
+    //Write the resulting value back to the register
+    OPT3001_WriteRegister(opt3001, OPT3001_CONFIGURATION_REG, regValue);
+}
+
+/**
+  * @brief  Determine and set the internal exponent scale factor based on a target lux limit.
+  *         This private helper function evaluates a target lux threshold (e.g., for setting 
+  *         low/high comparison limits) and maps it to the lowest full-scale range capable of 
+  *         representing that value. The selected exponent scale is stored internally in the 
+  *         handle structure under the _innerExponent field.
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration and state information for the sensor.
+  * @param  limit The target light intensity threshold in lux. Must be less than or equal 
+  *         to the maximum measurable value (83865.60 lux).
+  * @retval None
+  */
+static void OPT3001_SetInnerRange(OPT3001_HandleTypeDef *opt3001, double limit)
+{
+	if (limit <= 40.95) opt3001->_innerExponent = OPT3001_40_95_LUX;
+    else if ((limit > 40.95)    && (limit <= 81.90))    opt3001->_innerExponent = OPT3001_81_90_LUX;
+	else if ((limit > 81.90)    && (limit <= 163.80))   opt3001->_innerExponent = OPT3001_163_80_LUX;
+	else if ((limit > 163.80)   && (limit <= 327.60))   opt3001->_innerExponent = OPT3001_327_60_LUX;
+	else if ((limit > 327.60)   && (limit <= 655.20))   opt3001->_innerExponent = OPT3001_655_20_LUX;
+	else if ((limit > 655.20)   && (limit <= 1310.40))  opt3001->_innerExponent = OPT3001_1310_40_LUX;
+	else if ((limit > 1310.40)  && (limit <= 2620.80))  opt3001->_innerExponent = OPT3001_2620_80_LUX;
+	else if ((limit > 2620.80)  && (limit <= 5241.60))  opt3001->_innerExponent = OPT3001_5241_60_LUX;
+	else if ((limit > 5241.60)  && (limit <= 10483.20)) opt3001->_innerExponent = OPT3001_10483_20_LUX;
+	else if ((limit > 10483.20) && (limit <= 20966.40)) opt3001->_innerExponent = OPT3001_20966_40_LUX;
+	else if ((limit > 20966.40) && (limit <= 41932.80)) opt3001->_innerExponent = OPT3001_41932_80_LUX;
+	else if ((limit > 41932.80) && (limit <= 83865.60)) opt3001->_innerExponent = OPT3001_83865_60_LUX;
+}
+
+/**
+  * @brief  Set the lower comparison limit threshold in lux.
+  *         This function determines the best full-scale range exponent for the target limit,
+  *         calculates the corresponding 12-bit mantissa, combines both fields into a raw
+  *         16-bit register layout, and writes it to the LOW_LIMIT register.
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration and state information for the sensor.
+  * @param  lowLimit The target low limit threshold in lux.
+  * @retval None
+  */
+void OPT3001_SetLowLimit(OPT3001_HandleTypeDef *opt3001, double lowLimit)
+{
+    // Determine and set the inner exponent in opt3001->_innerExponent
+    OPT3001_SetInnerRange(opt3001, lowLimit);
+
+	uint8_t exponent = opt3001->_innerExponent;
+
+    // Calculate the mantissa using the formula: limit / (0.01 * 2^exponent)
+	double mantissa = lowLimit / (0.01 * (1 << exponent));
+
+    // Combine exponent (shifted to bits 15:12) and mantissa (bits 11:0)
+	uint16_t rawValue = (exponent << OPT3001_RN_Pos) | (uint16_t)mantissa;
+
+    // Write the raw value to the LOW_LIMIT register
+	OPT3001_WriteRegister(opt3001, OPT3001_LOW_LIMIT_REG, rawValue);
+}
+
+/**
+  * @brief  Set the higher comparison limit threshold in lux.
+  *         This function determines the best full-scale range exponent for the target limit,
+  *         calculates the corresponding 12-bit mantissa, combines both fields into a raw
+  *         16-bit register layout, and writes it to the LOW_LIMIT register.
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration and state information for the sensor.
+  * @param  highLimit The target low limit threshold in lux.
+  * @retval None
+  */
+void OPT3001_SetHighLimit(OPT3001_HandleTypeDef *opt3001, double highLimit)
+{
+    // Determine and set the inner exponent in opt3001->_innerExponent
+    OPT3001_SetInnerRange(opt3001, highLimit);
+
+	uint8_t exponent = opt3001->_innerExponent;
+
+    // Calculate the mantissa using the formula: limit / (0.01 * 2^exponent)
+	double mantissa = highLimit / (0.01 * (1 << exponent));
+
+    // Combine exponent (shifted to bits 15:12) and mantissa (bits 11:0)
+	uint16_t rawValue = (exponent << OPT3001_RN_Pos) | (uint16_t)mantissa;
+
+    // Write the raw value to the LOW_LIMIT register
+	OPT3001_WriteRegister(opt3001, OPT3001_LOW_LIMIT_REG, rawValue);
+}
+
+/**
+  * @brief  Read the HIGH_LIMIT register and calculate its value in lux.
+  *         This function retrieves the raw 16-bit register value, extracts the 
+  *         exponent and mantissa fields using their respective masks, and calculates 
+  *         the threshold limit in lux using the formula: lux = 0.01 * (2^exponent) * mantissa.
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration information for connecting to the sensor.
+  * @retval double The high limit threshold value in lux.
+  */
+double OPT3001_GetHighLimit_Lux(OPT3001_HandleTypeDef *opt3001)
+{
+    // Read the raw 16-bit value from the HIGH LIMIT register (correct uint16_t type)
+    uint16_t rawResult = OPT3001_GetHighLimitReg(opt3001);
+
+    // Extract the exponent value by masking and shifting to its position (bit 12)
+    uint8_t exponent = (rawResult & OPT3001_E) >> OPT3001_E_Pos;
+
+    // Extract the mantissa value by masking and shifting to its position (bit 0)
+    uint16_t mantissa = (rawResult & OPT3001_R) >> OPT3001_R_Pos;
+
+    // Calculate the lux value using the formula: 0.01 * (2^exponent) * mantissa
+    double lux = 0.01 * (double)(1 << exponent) * (double)mantissa;
+    
+    return lux;
+}
+
+/**
+  * @brief  Read the LOW_LIMIT register and calculate its value in lux.
+  *         This function retrieves the raw 16-bit register value, extracts the 
+  *         exponent and mantissa fields using their respective masks, and calculates 
+  *         the threshold limit in lux using the formula: lux = 0.01 * (2^exponent) * mantissa.
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration information for connecting to the sensor.
+  * @retval double The low limit threshold value in lux.
+  */
+double OPT3001_GetLowLimit_Lux(OPT3001_HandleTypeDef *opt3001)
+{
+    // Read the raw 16-bit value from the LOW LIMIT register (correct uint16_t type)
+    uint16_t rawResult = OPT3001_GetLowLimitReg(opt3001);
+
+    // Extract the exponent value by masking and shifting to its position (bit 12)
+    uint8_t exponent = (rawResult & OPT3001_E) >> OPT3001_E_Pos;
+
+    // Extract the mantissa value by masking and shifting to its position (bit 0)
+    uint16_t mantissa = (rawResult & OPT3001_R) >> OPT3001_R_Pos;
+
+    // Calculate the lux value using the formula: 0.01 * (2^exponent) * mantissa
+    double lux = 0.01 * (double)(1 << exponent) * (double)mantissa;
+
+    return lux;
+}
+
+/**
+  * @brief  Read the RESULT register and calculate the ambient light level in lux.
+  *         The conversion formula is:
+  *         lux = 0.01 * (2^E[3:0]) * R[11:0]
+  *         Where:
+  *         - E[3:0] is the exponent (bits [15:12])
+  *         - R[11:0] is the mantissa fractional result (bits [11:0])
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration information for connecting to the sensor.
+  * @retval double The calculated ambient light level in lux.
+  */
 double OPT3001_GetLux(OPT3001_HandleTypeDef *opt3001)
 {
-	double lux;
-	uint8_t exponent;
-	uint16_t mantissa;
-	uint16_t rawData = OPT3001_GetResult(opt3001);
-	
-	exponent = (rawData & 0xF000) >> 12;
-	mantissa = (rawData & 0x0FFF) >> 0;
-	
-	lux = 0.01 * pow(2, exponent) * mantissa;
-	return lux;
-}
+    // Read the raw 16-bit value from the RESULT register
+    uint8_t rawResult = OPT3001_GetResultReg(opt3001);
 
-/**
-  *@brief This function allows to set the exponent according to the value in lux suggested by
-  *			the user.
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@param limit
-  *@retval	HAL_Status
-*/
-HAL_StatusTypeDef OPT3001_GetInnerRange(OPT3001_HandleTypeDef *opt3001, double limit)
-{
-		if (limit < 40.95)
-	{
-		opt3001->innerExponent = OPT3001_40_95_LUX;
-	}
-	else if ((limit > 40.95) && (limit < 81.90))
-	{
-		opt3001->innerExponent = OPT3001_81_90_LUX;
-	}
-	else if ((limit > 81.90) && (limit < 163.80))
-	{
-		opt3001->innerExponent = OPT3001_163_80_LUX;
-	}
-	else if ((limit > 163.80) && (limit < 327.60))
-	{
-		opt3001->innerExponent = OPT3001_327_60_LUX;
-	}
-	else if ((limit > 327.60) && (limit < 655.20))
-	{
-		opt3001->innerExponent = OPT3001_655_20_LUX;
-	}
-	else if ((limit > 655.20) && (limit < 1310.40))
-	{
-		opt3001->innerExponent = OPT3001_1310_40_LUX;
-	}
-	else if ((limit > 1310.40) && (limit < 2620.80))
-	{
-		opt3001->innerExponent = OPT3001_2620_80_LUX;
-	}
-	else if ((limit > 2620.80) && (limit < 5241.60))
-	{
-		opt3001->innerExponent = OPT3001_5241_60_LUX;
-	}
-	else if ((limit > 5241.60) && (limit < 10483.20))
-	{
-		opt3001->innerExponent = OPT3001_10483_20_LUX;
-	}
-	else if ((limit > 10483.20) && (limit < 20966.40))
-	{
-		opt3001->innerExponent = OPT3001_20966_40_LUX;
-	}
-	else if ((limit > 20966.40) && (limit < 41932.80))
-	{
-		opt3001->innerExponent = OPT3001_41932_80_LUX;
-	}
-	else if ((limit > 41932.80) && (limit < 83865.60))
-	{
-		opt3001->innerExponent = OPT3001_83865_60_LUX;
-	}
-	else
-	{
-		return HAL_ERROR;
-	}
-	return HAL_OK;
-}
+    // Extract the exponent value by masking and shifting to its position (bit 12)
+    uint8_t exponent = (rawResult & OPT3001_E) >> OPT3001_E_Pos;
 
-/**
-  *@brief Get the current value of lux low limit by reading out the LOW_LIMIT register
-  *		and converting that value in lux.
-  * The formula to translate the register value into lux is given by:
-  * lux = 0.01 * (2^E[3:0]) x R[11:0]
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@retval	unsigned integer 16-bit data
-*/
-double OPT3001_GetLowLimitLux(OPT3001_HandleTypeDef *opt3001)
-{
-	double lux;
-	uint8_t exponent;
-	uint16_t mantissa;
+    // Extract the mantissa value by masking and shifting to its position (bit 0)
+    uint16_t mantissa = (rawResult & OPT3001_R) >> OPT3001_R_Pos;
 
-	uint16_t rawData = OPT3001_GetLowLimit(opt3001);
+    // Calculate the lux value using the formula: 0.01 * (2^exponent) * mantissa
+    double lux = 0.01 * (double)(1 << exponent) * (double)mantissa;
 
-	exponent = (rawData & 0xF000) >> 12;
-	mantissa = (rawData & 0x0FFF) >> 0;
-
-	lux = 0.01 * pow(2, exponent) * mantissa;
-	return lux;
-}
-
-/**
-  *@brief Get the current value of lux high limit by reading out the HIGH_LIMIT register
-  *			and converting that value in lux.
-  * The formula to translate the register value into lux is given by:
-  * lux = 0.01 * (2^E[3:0]) x R[11:0]
-  *@param opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
-  *			the configuration information for connecting to the sensor.
-  *@retval	unsigned integer 16-bit data
-*/
-double OPT3001_GetHighLimitLux(OPT3001_HandleTypeDef *opt3001)
-{
-	double lux;
-	uint8_t exponent;
-	uint16_t mantissa;
-
-	uint16_t rawData = OPT3001_GetHighLimit(opt3001);
-
-	exponent = (rawData & 0xF000) >> 12;
-	mantissa = (rawData & 0x0FFF) >> 0;
-
-	lux = 0.01 * pow(2, exponent) * mantissa;
-	return lux;
-}
-
-/**
-  * @brief  Create a new instance of the OPT3001 ambient light sensor setting the I²C port and slave address
-  * @param  opt3001 Pointer to a MCP9808_HandleTypeDef structure that contains
-  *                the configuration information for connecting to the sensor.
-  * @param  hi2c Pointer to a I2C_HandleTypeDef structure that contains
-  *                the configuration information for the specified I2C.
-  * @retval none
-  */
-void OPT3001_Init(OPT3001_HandleTypeDef *opt3001, I2C_HandleTypeDef *i2c)
-{
-	opt3001->devAddress = OPT3001_ADDRESS;
-	opt3001->hi2c = i2c;
-
-	OPT3001_SetRangeNumber(opt3001, OPT3001_AUTOMATIC_RANGE);
-	OPT3001_SetConversionTime(opt3001, OPT3001_CT_800_MS);
-	OPT3001_SetConversionMode(opt3001, OPT3001_CONTINUOUS_CONVERSION);
-	OPT3001_SetLatchStyle(opt3001, OPT3001_HYSTERESIS_STYLE);
-	OPT3001_SetIntPolarity(opt3001, OPT3001_INT_ACTIVE_LOW);
-	OPT3001_SetExponentFIeld(opt3001, OPT3001_MASK_EXP_ACTIVE);
+    return lux;
 }

@@ -103,36 +103,44 @@
 #define OPT3001_RN_Mask                 (0xFU << OPT3001_RN_Pos)
 #define OPT3001_RN                      OPT3001_RN_Mask
 
+/*******************  Bits definition for RESULT register  ******************/
+#define OPT3001_E_Pos                   (12U)
+#define OPT3001_E_Mask                  (0xFU << OPT3001_E_Pos)
+#define OPT3001_E                       OPT3001_E_Mask
+
+#define OPT3001_R_Pos                   (0U)
+#define OPT3001_R_Mask                  (0xFFFU << OPT3001_R_Pos)
+#define OPT3001_R                       OPT3001_R_Mask
 
 typedef enum
 {
-	OPT3001_40_95_LUX					= 0x0000,
-	OPT3001_81_90_LUX					= 0x1000,
-	OPT3001_163_80_LUX					= 0x2000,
-	OPT3001_327_60_LUX					= 0x3000,
-	OPT3001_655_20_LUX					= 0x4000,
-	OPT3001_1310_40_LUX					= 0x5000,
-	OPT3001_2620_80_LUX					= 0x6000,
-	OPT3001_5241_60_LUX					= 0x7000,
-	OPT3001_10483_20_LUX				= 0x8000,
-	OPT3001_20966_40_LUX				= 0x9000,
-	OPT3001_41932_80_LUX				= 0xA000,
-	OPT3001_83865_60_LUX				= 0xB000,
-	OPT3001_AUTOMATIC_RANGE				= 0xC000,
-}OPT3001_RangeNumber_HandleTypeDef;
+	OPT3001_40_95_LUX					= 0x0U,
+	OPT3001_81_90_LUX					= 0x1U,
+	OPT3001_163_80_LUX					= 0x2U,
+	OPT3001_327_60_LUX					= 0x3U,
+	OPT3001_655_20_LUX					= 0x4U,
+	OPT3001_1310_40_LUX					= 0x5U,
+	OPT3001_2620_80_LUX					= 0x6U,
+	OPT3001_5241_60_LUX					= 0x7U,
+	OPT3001_10483_20_LUX				= 0x8U,
+	OPT3001_20966_40_LUX				= 0x9U,
+	OPT3001_41932_80_LUX				= 0xAU,
+	OPT3001_83865_60_LUX				= 0xBU,
+	OPT3001_AUTOMATIC_RANGE				= 0xCU,
+}OPT3001_FullScaleRange_TypeDef;
 
 typedef enum
 {
-	OPT3001_CT_100_MS					= 0x0000,
-	OPT3001_CT_800_MS					= 0x0800, 
-}OPT3001_ConversionTime_HandleTypeDef;
+	OPT3001_100_MS				    	= 0x0U,
+	OPT3001_800_MS				    	= 0x1U, 
+}OPT3001_ConvTime_TypeDef;
 
 typedef enum
 {
-	OPT3001_SHUTDOWN					= 0x0000,
-	OPT3001_SINGLE_SHOT					= 0x0200,
-	OPT3001_CONTINUOUS_CONVERSION		= 0x0400,
-}OPT3001_ConversionMode_HandleTypeDef;
+	OPT3001_SHUTDOWN_MODE				= 0x0U,
+	OPT3001_SINGLE_SHOT_MODE		    = 0x1U,
+	OPT3001_CONTINUOUS_MODE		        = 0x2U,
+}OPT3001_Mode_TypeDef;
 
 typedef enum
 {
@@ -164,8 +172,8 @@ typedef enum
 typedef struct
 {
 	I2C_HandleTypeDef					*hi2c;
-	uint8_t								devAddress;
-	OPT3001_RangeNumber_HandleTypeDef 	innerExponent;
+	uint8_t								_devAddress;
+	OPT3001_FullScaleRange_TypeDef 	    _innerExponent;
 }OPT3001_HandleTypeDef;
 
 
