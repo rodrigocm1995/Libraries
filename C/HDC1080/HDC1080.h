@@ -110,9 +110,11 @@ void HDC1080_SetTempResolution(HDC1080_HandleTypeDef *hdc1080, HDC1080_Resolutio
 void HDC1080_SetMode(HDC1080_HandleTypeDef *hdc1080, HDC1080_Mode_TypeDef mode);
 void HDC1080_SetHeater(HDC1080_HandleTypeDef *hdc1080, HDC1080_Heater_TypeDef heat);
 
-
+/* Getting values */
+uint64_t HDC1080_GetSerialNumber(HDC1080_HandleTypeDef *hdc1080);
+uint16_t HDC1080_GetManufacturerID(HDC1080_HandleTypeDef *hdc1080);
+uint16_t HDC1080_GetDeviceID(HDC1080_HandleTypeDef *hdc1080);
 double HDC1080_GetTemp_C(HDC1080_HandleTypeDef *hdc1080);
-
 double HDC1080_GetHumidity(HDC1080_HandleTypeDef *hdc1080);
 
 #endif

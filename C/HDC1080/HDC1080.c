@@ -199,7 +199,7 @@ void HDC1080_SetHeater(HDC1080_HandleTypeDef *hdc1080, HDC1080_Heater_TypeDef he
   */
 uint16_t HDC1080_GetManufacturerID(HDC1080_HandleTypeDef *hdc1080)
 {
-    uint16_t regValue = HDC_ReadRegister(hdc1080, HDC1080_MANUFACTURER_ID_REG);
+    uint16_t regValue = HDC1080_ReadRegister(hdc1080, HDC1080_MANUFACTURER_ID_REG);
 
 	return regValue;
 }
@@ -217,7 +217,7 @@ uint16_t HDC1080_GetManufacturerID(HDC1080_HandleTypeDef *hdc1080)
   */
 uint16_t HDC1080_GetDeviceID(HDC1080_HandleTypeDef *hdc1080)
 {
-    uint16_t regValue = HDC_ReadRegister(hdc1080, HDC1080_DEVICE_ID_REG);
+    uint16_t regValue = HDC1080_ReadRegister(hdc1080, HDC1080_DEVICE_ID_REG);
 
 	return regValue;
 }
@@ -281,7 +281,7 @@ uint64_t HDC1080_GetSerialNumber(HDC1080_HandleTypeDef *hdc1080)
     }
 
     // Align the lower 9 bits of the Serial ID (extracted from bits 15:7 of 0xFD)
-    uint16_t rawID3 = rawID3 >> 7;
+    rawID3 = rawID3 >> 7;
 
     // Assemble the 40-bit/41-bit serial number in its natural order:
     // [40:25] from rawID1, [24:9] from rawID2, and [8:0] from serialID_8_0
