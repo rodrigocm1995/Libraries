@@ -1,5 +1,6 @@
 #include "main.h"
 #include "math.h"
+#include "stm32f3xx_hal_i2c.h"
 #include "HDC1080.h"
 
 /**
@@ -44,7 +45,7 @@ uint16_t HDC1080_ReadRegister(HDC1080_HandleTypeDef *hdc1080, uint8_t registerAd
     HAL_StatusTypeDef isDeviceReady;   
 
     // Check if the device is ready on the I2C bus
-    isDeviceReady = HAL_I2C_IsDeviceReady(hdc1080->hi2c, (hdc1080->_devAddress) << 1, HDC1080_TRIALS, HAL_MAX_DELAY);
+    isDeviceReady = HAL_I2C_IsDeviceReady(hdc1080->hi2c, (hdc1080->_devAddress) << 1, HDC1080_TRIALS, 100);
 
     if (isDeviceReady == HAL_OK)
     {
@@ -55,14 +56,90 @@ uint16_t HDC1080_ReadRegister(HDC1080_HandleTypeDef *hdc1080, uint8_t registerAd
             return (uint16_t)((registerResponse[0] << 8) | registerResponse[1]);
         }       
     }
+
     // Returns a maximum control value (0xFFFF) indicating a communication error
     return 0xFFFF;
+}
+
+/**
+  * @brief  Read 4 consecutive bytes from a specific register of the HDC1080
+  * @param  hdc1080 Pointer to the handler structure.
+  * @param  registerAddress Register address to start reading from.
+  * @return 32-bit compiled value read from the device, or 0 if communication fails.
+  */
+uint32_t HDC1080_ReadTempAndHumidityRaw(HDC1080_HandleTypeDef *hdc1080, uint8_t registerAddress)
+{
+	uint32_t value = 0;
+  	uint8_t tBuffer[1] = {0};
+  	tBuffer[0] = registerAddress;
+	uint8_t registerResponse[4] = {0}; 
+	uint8_t i;
+
+    // Transmit the address of the register to read
+    if (HAL_I2C_Master_Transmit(hdc1080->hi2c, (hdc1080->_devAddress) << 1, tBuffer, 1, HAL_MAX_DELAY) != HAL_OK)
+    {
+        return 0; 
+    }
+
+	// The sensor requires conversion time (approx 13-15ms at maximum resolution)
+	HAL_Delay(20);
+
+   	// Read the 4 resulting bytes
+    if (HAL_I2C_Master_Receive(hdc1080->hi2c, (hdc1080->_devAddress) << 1, registerResponse, 4, HAL_MAX_DELAY) != HAL_OK)
+    {
+        return 0; // Communication error
+    }	
+
+    // Assemble the 4 bytes into a 32-bit word (MSB first)
+    for (i = 0; i < 4; i++)
+    {
+        value = (value << 8) | registerResponse[i];
+    }
+	
+  	return value;
+}
+
+/**
+  * @brief  Read the raw 16-bit value of either Temperature or Humidity individual registers
+  * @details Used when MODE = 0 (Individual measurement mode). It writes the register address,
+  *          waits for the conversion to complete, and reads the 2-byte result.
+  * @param  hdc1080 Pointer to the handler structure.
+  * @param  registerAddress Register address to read (HDC1080_TEMPERATURE_REG or HDC1080_HUMIDITY_REG).
+  * @return Raw 16-bit register value, or 0 if communication fails.
+  */
+uint16_t HDC1080_ReadTempOrHumidityRaw(HDC1080_HandleTypeDef *hdc1080, uint8_t registerAddress)
+{
+  	uint8_t tBuffer[1] = {0};
+  	tBuffer[0] = registerAddress;
+	uint8_t registerResponse[2] = {0}; 
+
+    // Transmit the address of the register to read
+    if (HAL_I2C_Master_Transmit(hdc1080->hi2c, (hdc1080->_devAddress) << 1, tBuffer, 1, HAL_MAX_DELAY) != HAL_OK)
+    {
+        return 0; 
+    }
+
+	// The sensor requires conversion time (approx 13-15ms at maximum resolution)
+	HAL_Delay(20);
+
+   	// Read the 4 resulting bytes
+    if (HAL_I2C_Master_Receive(hdc1080->hi2c, (hdc1080->_devAddress) << 1, registerResponse, sizeof(registerResponse), HAL_MAX_DELAY) != HAL_OK)
+    {
+        return 0; // Communication error
+    }
+    
+    return (uint16_t)((registerResponse[0] << 8) | registerResponse[1]);
 }
 
 void HDC1080_Init(HDC1080_HandleTypeDef *hdc1080, I2C_HandleTypeDef *i2c, uint8_t devAddress)
 {
     hdc1080->hi2c = i2c;
     hdc1080->_devAddress = devAddress;
+
+    HDC1080_SetHumResolution(hdc1080, HDC1080_14BIT_RESOLUTION);
+    HDC1080_SetTempResolution(hdc1080, HDC1080_14BIT_RESOLUTION);
+    HDC1080_SetMode(hdc1080, HDC1080_TEMP_AND_HUMIDITY );
+    HDC1080_SetHeater(hdc1080, HDC1080_HEATER_ENABLED);
 }
 
 /**
@@ -223,6 +300,39 @@ uint16_t HDC1080_GetDeviceID(HDC1080_HandleTypeDef *hdc1080)
 }
 
 /**
+  * @brief  Read both Temperature and Humidity in a single I2C transaction
+  * @param  hdc1080 Pointer to the handler structure.
+  * @param  tempC Pointer to store the temperature in Celsius.
+  * @param  humidity Pointer to store the relative humidity percentage.
+  * @retval None
+  */
+void HDC1080_GetTempAndHumidity(HDC1080_HandleTypeDef *hdc1080, double *tempC, double *humidity)
+{
+    // Single 4-byte I2C transaction (triggers 1 wait delay of 20ms)
+    uint32_t regValue = HDC1080_ReadTempAndHumidityRaw(hdc1080, HDC1080_TEMPERATURE_REG);
+
+    if (regValue == 0)
+    {
+        return; // Communication error, pointers left unmodified or set to error value
+    }
+
+    // Unpack MSB and LSB
+    uint16_t tempRaw = (uint16_t)(regValue >> 16);
+    uint16_t humRaw = (uint16_t)(regValue & 0xFFFF);
+
+    // Convert and write to outputs if pointers are not NULL
+    if (tempC != NULL)
+    {
+        *tempC = ((double)tempRaw / 65536.0) * 165.0 - 40.0;
+    }
+
+    if (humidity != NULL)
+    {
+        *humidity = ((double)humRaw / 65536.0) * 100.0;
+    }
+}
+
+/**
   * @brief  Read the temperature from the HDC1080 sensor in Celsius degrees
   * @param  hdc1080 Pointer to a HDC1080_HandleTypeDef structure that contains
   *                 the configuration and driver state for the specified HDC1080.
@@ -230,10 +340,11 @@ uint16_t HDC1080_GetDeviceID(HDC1080_HandleTypeDef *hdc1080)
   */
 double HDC1080_GetTemp_C(HDC1080_HandleTypeDef *hdc1080)
 {
-    // Read the Temperature Result Register (Address: 0x00)
-    uint16_t regValue = HDC1080_ReadRegister(hdc1080, HDC1080_TEMPERATURE_REG);
+    // Read the combined 32-bit temperature and humidity value
+    // Always start reading from the Temperature Register (Address: 0x00)
+    uint32_t regValue = HDC1080_ReadTempOrHumidityRaw(hdc1080, HDC1080_TEMPERATURE_REG);
 
-    // Convert the raw 16-bit register value using the formula: (Raw / 2^16) * 165 - 40
+    // Convert the raw 16-bit value using the formula: (Raw / 2^16) * 165 - 40
     double temperature = ((double)regValue / 65536.0) * 165.0 - 40.0;
 
     return temperature;
@@ -247,11 +358,12 @@ double HDC1080_GetTemp_C(HDC1080_HandleTypeDef *hdc1080)
   */
 double HDC1080_GetHumidity(HDC1080_HandleTypeDef *hdc1080)
 {
-    // Read the Humidity Result Register (Address: 0x01)
-    uint16_t rawHumidity = HDC1080_ReadRegister(hdc1080, HDC1080_HUMIDITY_REG);
+    // Read the combined 32-bit temperature and humidity value
+    // Always start reading from the Temperature Register (Address: 0x00)
+    uint32_t regValue = HDC1080_ReadTempOrHumidityRaw(hdc1080, HDC1080_HUMIDITY_REG);
 
-    // Convert the raw 16-bit register value using the formula: (Raw / 2^16) * 100
-    double humidity = ((double)rawHumidity / 65536.0) * 100.0;
+    // Convert the raw 16-bit value using the formula: (Raw / 2^16) * 100
+    double humidity = ((double)regValue / 65536.0) * 100.0;
 
     return humidity;
 }

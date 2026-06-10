@@ -99,6 +99,8 @@ typedef struct
 /* Register Write & Read */
 HAL_StatusTypeDef HDC1080_WriteRegister(HDC1080_HandleTypeDef *hdc1080, uint8_t registerAddress, uint16_t value);
 uint16_t HDC1080_ReadRegister(HDC1080_HandleTypeDef *hdc1080, uint8_t registerAddress);
+uint32_t HDC1080_ReadTempAndHumidityRaw(HDC1080_HandleTypeDef *hdc1080, uint8_t registerAddress);
+uint16_t HDC1080_ReadTempOrHumidityRaw(HDC1080_HandleTypeDef *hdc1080, uint8_t registerAddress);
 
 /* Initialization & Control */
 void HDC1080_Init(HDC1080_HandleTypeDef *hdc1080, I2C_HandleTypeDef *i2c, uint8_t devAddress);
@@ -116,5 +118,7 @@ uint16_t HDC1080_GetManufacturerID(HDC1080_HandleTypeDef *hdc1080);
 uint16_t HDC1080_GetDeviceID(HDC1080_HandleTypeDef *hdc1080);
 double HDC1080_GetTemp_C(HDC1080_HandleTypeDef *hdc1080);
 double HDC1080_GetHumidity(HDC1080_HandleTypeDef *hdc1080);
+void HDC1080_GetTempAndHumidity(HDC1080_HandleTypeDef *hdc1080, double *tempC, double *humidity);
+
 
 #endif
