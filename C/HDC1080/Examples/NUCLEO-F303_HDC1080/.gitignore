@@ -1,0 +1,18 @@
+build
+mx.scratch
+!.settings
+
+
+# Excluir carpetas de compilación de STM32CubeIDE
+Debug/
+Release/
+# Excluir archivos binarios y temporales específicos
+*.elf
+*.bin
+*.hex
+*.map
+*.list
+*.o
+*.su
+*.d
+*.o.d
