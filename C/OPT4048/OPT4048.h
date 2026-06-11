@@ -4,42 +4,38 @@
   * @brief          : OPT4048 Library
     *******************************************************************************************
 
-  * The OPT3001 is a sensor that measures the intensity of visible light. The spectral response
-  * of the sensor tightly matches the photopic response of the human eye and includes singific-
-  * ant infrared rejection.
-  * The strong IR rejection also aids in maintaining high accuracy when industrial design calls
-  * for mounting the sensor under dark glass for aesthetics. It is an ideal preferred replacem-
-  * ent for photodiodes, photoresistors, or other ambient light sensors with less human eye ma-
-  * tching and IR rejection.
-  * Measurements can be made from 0.01 lux up to 83k lux without manually selecting full-scale 
-  * ranges by using the built-in, full-scale setting feature. This capability allows light mea-
-  * surement over a 23-bit effective dynamic range.
-  *   
+  * The OPT4048 is a single-chip high resolution color sensor, capable of measuring four
+  * channels each with specific engineered spectral responses. Three of the four channels
+  * closely match the CIE tristimulus spectra with the fourth channel having a wide band
+  * spectral response.
+  * With measurements from these channels, important characteristics of the lighting envi-
+  * ronment can be extracted like:
+  * (I)   Light intensity (lux)
+  * (II)  Color in CIE XY, LUV coordinates
+  * (III) Correlated Color Temperature  
+  * 
   * @details
-  * Precision Optical Filtering to Match Human Eye: Rejects > 99% (typ) of IR
-  * Automatic Full-Scale Setting Feature Simplifies Software and Ensures proper configuration.
-  * Measurements: 0.01 lux to 83k lux
-  * 23-bit effective dynamic range with automatic gain ranging
-  * 12 binary-weighted full-scale range settings: < 0.2% (typ) matching between ranges.
-  * Low operating current: 1.8uA (typ)
-  * Operating temperature range: -40°C to +85°C.
-  * Wide power-supply range: 1.6V to 3.6V
-  * 5.5V Tolerant I/O
-  * Flexible Interrupt System
+  * High precision, high speed color light-to-digital conversion over high speed I2C interface
+  * Four channel sensing using precision optical filters:
+  *  - XYZ tristimulus channels with close matching to CIE 1931 spectra with excellent IR
+  *    rejection.
+  *  - Clear wide bandwidth channel
+  * High resolution color measurement in CIE XY, LUV space, correlated color temperature
+  *  (CCT) along with ambient lux measurement
+  * Semi-logarithmic output with 7 binary logarithmic full-scale light range and highly
+  *  linear response within each range
+  * Built-in automatic full-scale light range selection logic, which switches measurement
+  *  range based on input light condition with excellent gain matching between ranges
+  * 26 bits of effective dynamic range from 2.15 mlux to 144 klux
+  * 12 configurable conversion times from 600 μs to 800 ms per channel is an excellent
+  *  choice for a wide variety of high speed and high precision applications
+  * External pin interrupt for hardware synchronized trigger and interrupts
+  * Low operating current: 24 μA with ultra-low power standby: 2 μA
+  * Operating temperature range: –40°C to +85°C
+  * Wide power-supply range: 1.6 V to 3.6 V
+  * 5.5-V Tolerant I/Os
+  * Selectable I2C address
   * 
-  * @example
-  * 
-  * The formula to translate the result register's content into lux is given by equation 1:
-  * 
-  * lux = LSB_Size x R[11:0]                                                              (1) 
-  * 
-  * Where:
-  *   LSB_Size = 0.01 x 2^E[3:0]                                                          (2)
-  * 
-  * The complete lux equation is shown in equation 3
-  * 
-  * lux = 0.01 x 2^E[3:0] x R[11:0]
-
   *******************************************************************************************
   */
 
