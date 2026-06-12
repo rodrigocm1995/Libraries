@@ -44,6 +44,8 @@
 
 #define OPT4048_ADDRESS                     0x44
 #define OPT4048_TRIALS                      5
+#define OPT4048_NUMBER_OF_CHANNELS          4
+
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 
 // Register
@@ -127,20 +129,26 @@
 #define OPT4048_OVERLOAD_FLAG_Mask              (0x1U << OPT4048_OVERLOAD_FLAG_Pos)
 #define OPT4048_OVERLOAD_FLAG                   OPT4048_OVERLOAD_FLAG_Mask
 
+/*******************  Bits definition for CH_X registers  ******************/
+#define OPT4048_EXPONENT_CH_X_Pos               (12U)
+#define OPT4048_EXPONENT_CH_X_Mask              (0xFU << OPT4048_EXPONENT_CH_X_Pos)
+#define OPT4048_EXPONENT_CH_X                   OPT4048_EXPONENT_CH_X_Mask
 
-#define FULL_SCALE_RANGE_40_95            40.95f
-#define FULL_SCALE_RANGE_81_90            81.90f
-#define FULL_SCALE_RANGE_163_80           163.80f
-#define FULL_SCALE_RANGE_327_60           327.60f
-#define FULL_SCALE_RANGE_655_20           655.20f
-#define FULL_SCALE_RANGE_1310_40          1310.40f
-#define FULL_SCALE_RANGE_2620_80          2620.80f
-#define FULL_SCALE_RANGE_5241_60          5241.60f
-#define FULL_SCALE_RANGE_10483_20         10483.20f
-#define FULL_SCALE_RANGE_20966_40         20966.40f
-#define FULL_SCALE_RANGE_41932_80         41932.80f
-#define FULL_SCALE_RANGE_83865_60         83865.60f
+#define OPT4048_RESULT_MSB_CH_X_Pos             (0U)
+#define OPT4048_RESULT_MSB_CH_X_Mask            (0xFFFU << OPT4048_RESULT_MSB_CH_X_Pos)
+#define OPT4048_RESULT_MSB_CH_X                 OPT4048_RESULT_MSB_CH_X_Mask
 
+#define OPT4048_RESULT_LSB_CH_X_Pos             (8U)
+#define OPT4048_RESULT_LSB_CH_X_Mask            (0xFFU << OPT4048_RESULT_LSB_CH_X_Pos)
+#define OPT4048_RESULT_LSB_CH_X                 OPT4048_RESULT_LSB_CH_X_Mask
+
+#define OPT4048_COUNTER_CH_X_Pos                (4U)
+#define OPT4048_COUNTER_CH_X_Mask               (0xFU << OPT4048_COUNTER_CH_X_Pos)
+#define OPT4048_COUNTER_CH_X                    OPT4048_COUNTER_CH_X_Mask
+
+#define OPT4048_CRC_CH_X_Pos                    (0U)
+#define OPT4048_CRC_CH_X_Mask                   (0xFU << OPT4048_CRC_CH_X_Pos)
+#define OPT4048_CRC_CH_X                        OPT4048_CRC_CH_X_Mask
 
 typedef enum
 {
@@ -260,7 +268,7 @@ typedef enum
 
 
 HAL_StatusTypeDef OPT4048_WriteRegister(OPT4048_HandleTypeDef *opt4048, uint8_t registerAddress, uint16_t value);
-
+uint16_t OPT4048_ReadRegister(OPT4048_HandleTypeDef *opt4048, uint8_t registerAddress);
 uint16_t OPT4048_GetDeviceID(OPT4048_HandleTypeDef *opt4048);
 
 void OPT4048_SetFaultCount(OPT4048_HandleTypeDef *opt4048, OPT4048_FaultCount_TypeDef faultCount);
@@ -268,11 +276,11 @@ void OPT4048_SetAlertPinPolarity(OPT4048_HandleTypeDef *opt4048, OPT4048_AlertPi
 void OPT4048_SetMode(OPT4048_HandleTypeDef *opt4048, OPT4048_Mode_TypeDef mode);
 void OPT4048_SetConvTime(OPT4048_HandleTypeDef *opt4048, OPT4048_ConvTime_TypeDef convTime);
 void OPT4048_SetRange(OPT4048_HandleTypeDef *opt4048, OPT4048_FullScaleRange_TypeDef range);
+void OPT4048_SetI2CType(OPT4048_HandleTypeDef *opt4048, OPT4048_I2CBurst_TypeDef i2cType);
 
 _Bool OPT4048_IsConversionReady(OPT4048_HandleTypeDef *opt4048);
-
-
-int32_t opt4048ReadRegister32(OPT4048_HandleTypeDef *opt4048, uint8_t registerAddress);
+HAL_StatusTypeDef OPT4048_ReadADCRawValues(OPT4048_HandleTypeDef *opt4048, uint16_t *regValues);
+HAL_StatusTypeDef OPT4048_GetXYZAndLux(OPT4048_HandleTypeDef *opt4048);
 
 void OPT4048_Init(OPT4048_HandleTypeDef *opt4048, I2C_HandleTypeDef *i2c, uint8_t devAddress);
 
