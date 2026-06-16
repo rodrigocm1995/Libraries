@@ -12,23 +12,22 @@
   *
   *   
   * @details
-  * Accuracy:
-  * - ±0.25°C (typical) from -40°C to +125°C
-  * - ±0.5°C (maximum) from -20°C to +100°C
-  * - ±1°C (maximum) from from -40°C to +125°C
-  * User selectable Measurement Resolution:
-  * - +0.5°C, +0.25°C,m +0.125°C, +0.0625°C
-  * User-Programmable Temperature Limits:
-  * - Temperature Window Limit
-  * - Critical Temperature Limit
-  * User programmable Temperature Alert Output
-  * Operating voltage range: 2.7V to 5.5V
-  * Operating Current: 200µA (typical)
-  * Shuntdown current: 0.1µA (typical)
-  * 2-Wire interface: I2C/SMBus compatible
+  * I2C interface capable of Standard mode @100kHz or Fast mode @400kHz communication;
+  *  1.8V logic compatible
+  * Ambient Light / Ultraviolet light (UVS) Technology in one ultra-small 2x2mm ChipLED
+  *  package
+  * Very low power consumption with sleep mode capability
+  * Operating voltage ranges: 1.7V to 3.6V
+  * Operating temperature ranges: -40 to +85 ºC
+  * Built-in temperature compensation circuit
+  * Programmable interrupt function for ALS , UVS with upper and lower thresholds
+  * RoHS and Halogen free compliant
   * 
-  * @example
-  * 
+  * UVS/ALS Features
+  * 13 to 20 bits effective resolution
+  * Wide dynamic range of 1:18,000,000 with linear response
+  * Close to human eye spectral response
+  * Automatic rejection for 50Hz/60Hz lighting flicker
   *******************************************************************************************
   */
 
