@@ -59,12 +59,60 @@
 #define LTR390UV_ALS_UVS_THRESS_LOW_1_REG       0x25    /* ALS/UVS interrupt lower threshold, intervening bits */
 #define LTR390UV_ALS_UVS_THRESS_LOW_2_REG       0x26    /* ALS/UVS interrupt lower threshold, MSB */
 
+/*******************  Bits definition for MAIN_CTRL register  ******************/
+#define LTR390UV_ALS_UVS_ENABLE_Pos             (1U)
+#define LTR390UV_ALS_UVS_ENABLE_Mask            (0x1U << LTR390UV_ALS_UVS_ENABLE_Pos)                
+#define LTR390UV_ALS_UVS_ENABLE                 LTR390UV_ALS_UVS_ENABLE_Mask
 
-// Masks
-#define LTR390UV_UVS_MODE_MASK                   0xF7
-#define LTR390UV_UVS_ENABLE_MASK                 0xFD
-#define LTR390UV_RESOLUTION_MASK				 0x8F
-#define LTR390UV_GAIN_MASK						 0xF8
+#define LTR390UV_UVS_MODE_Pos                   (3U)
+#define LTR390UV_UVS_MODE_Mask                  (0x1U << LTR390UV_UVS_MODE_Pos)
+#define LTR390UV_UVS_MODE                       LTR390UV_UVS_MODE_Mask
+
+#define LTR390UV_SW_RESET_Pos                   (4U)
+#define LTR390UV_SW_RESET_Mask                  (0x1U << LTR390UV_SW_RESET_Pos)
+#define LTR390UV_SW_RESET                       LTR390UV_SW_RESET_Mask
+
+/*******************  Bits definition for ALS_UVS_MEAS_RATE register  ******************/
+#define LTR390UV_ALS_UVS_MEAS_RATE_Pos          (0U)
+#define LTR390UV_ALS_UVS_MEAS_RATE_Mask         (0x7F << LTR390UV_ALS_UVS_MEAS_RATE_Pos)
+#define LTR390UV_ALS_UVS_MEAS_RATE              LTR390UV_ALS_UVS_MEAS_RATE_Mask
+
+#define LTR390UV_ALS_UVS_RESOLUTION_Pos         (4U)
+#define LTR390UV_ALS_UVS_RESOLUTION_mask        (0x7U << LTR390UV_ALS_UVS_RESOLUTION_Pos)
+#define LTR390UV_ALS_UVS_RESOLUTION             LTR390UV_ALS_UVS_RESOLUTION_mask
+
+/*******************  Bits definition for ALS_UVS_GAIN register  ******************/
+#define LTR390UV_ALS_UVS_GAIN_Pos               (0U)
+#define LTR390UV_ALS_UVS_GAIN_Mask              (0x7U << LTR390UV_ALS_UVS_GAIN_Pos)
+#define LTR390UV_ALS_UVS_GAIN                   LTR390UV_ALS_UVS_GAIN_Mask
+
+/*******************  Bits definition for MAIN_STATUS register (Read-only) ***********/
+#define LTR390UV_UVS_ALS_DATA_STATUS_Pos        (3U)
+#define LTR390UV_UVS_ALS_DATA_STATUS_Mask       (0x1U << LTR390UV_UVS_ALS_DATA_STATUS_Pos)
+#define LTR390UV_UVS_ALS_DATA_STATUS            LTR390UV_UVS_ALS_DATA_STATUS_Mask
+
+#define LTR390UV_ALS_UVS_INTERRUPT_STATUS_Pos   (4U)
+#define LTR390UV_ALS_UVS_INTERRUPT_STATUS_Mask  (0x1U << LTR390UV_ALS_UVS_INTERRUPT_STATUS_Pos)
+#define LTR390UV_ALS_UVS_INTERRUPT_STATUS       LTR390UV_ALS_UVS_INTERRUPT_STATUS_Mask  
+
+#define LTR390UV_POWER_ON_STATUS_Pos            (5U)
+#define LTR390UV_POWER_ON_STATUS_Mask           (0x1U << LTR390UV_POWER_ON_STATUS_Pos)
+#define LTR390UV_POWER_ON_STATUS                LTR390UV_POWER_ON_STATUS_Mask
+
+/*******************  Bits definition for INT_CFG register  ******************/
+#define LTR390UV_LS_INTERRUPT_ENABLE_Pos        (2U)
+#define LTR390UV_LS_INTERRUPT_ENABLE_Mask       (0x1U << LTR390UV_LS_INTERRUPT_ENABLE_Pos)
+#define LTR390UV_LS_INTERRUPT_ENABLE            LTR390UV_LS_INTERRUPT_ENABLE_Mask
+
+#define LTR390UV_LS_INTERRUPT_SELECTION_POS    (4U)
+#define LTR390UV_LS_INTERRUPT_SELECTION_Mask   (0x3U << LTR390UV_LS_INTERRUPT_SELECTION_POS)
+#define LTR390UV_LS_INTERRUPT_SELECTION        LTR390UV_LS_INTERRUPT_SELECTION_Mask
+
+/*******************  Bits definition for INT_PST register  ******************/
+#define LTR390UV_ALS_UV_PERSIST_Pos            (4U)
+#define LTR390UV_ALS_UV_PERSIST_Mask           (0xFU << LTR390UV_ALS_UV_PERSIST_Pos)
+#define LTR390UV_ALS_UV_PERSIST                LTR390UV_ALS_UV_PERSIST_Mask
+
 
 typedef enum
 {
