@@ -90,7 +90,7 @@ void OPT4048_Init(OPT4048_HandleTypeDef *opt4048, I2C_HandleTypeDef *i2c, uint8_
     OPT4048_SetFaultCount(opt4048, OPT4048_TWO_FAULT_COUNT);
     OPT4048_SetAlertPinPolarity(opt4048, OPT4048_ALERT_ACTIVE_HIGH);
     OPT4048_SetMode(opt4048, OPT4048_CONTINUOUS_MODE);
-    OPT4048_SetConvTime(opt4048, OPT4048_200_MS);
+    OPT4048_SetConvTime(opt4048, OPT4048_50_MS);
     OPT4048_SetRange(opt4048, OPT4048_AUTOMATIC_RANGE);
     OPT4048_SetI2CType(opt4048, OPT4048_I2C_BURST_ENABLED);
 }
@@ -393,6 +393,26 @@ static uint8_t OPT4048_CalculateCRC(uint8_t exp, uint32_t mantissa, uint8_t coun
     return crc;
 }
 
+static double OPT4048_GammaCorrection(double c)
+{
+    if (c <= 0.0031308)
+    {
+        return 12.92 * c;
+    }
+    else
+    {
+        return 1.055 * pow(c, 1 / 2.4) - 0.055;
+    }
+}
+
+static double OPT4048_Clamp(double n)
+{
+    double var1 = fminf(1, n);
+    double var2 = fmaxf(0, var1);
+
+    return var2;
+}
+
 /**
   * @brief  Read and calculate the CIE XYZ chromaticity coordinates and Lux value
   * @details Reads all 4 channels in a single burst, decodes the floating-point mantissa 
@@ -473,9 +493,49 @@ HAL_StatusTypeDef OPT4048_GetXYZAndLux(OPT4048_HandleTypeDef *opt4048)
     double sum = X_raw + Y_raw + Z_raw;
     if (sum != 0.0)
     {
+        opt4048->cieSum = sum;
         opt4048->cieX = X_raw / sum;
         opt4048->cieY = Y_raw / sum;
         opt4048->cieZ = Z_raw / sum;
+
+        // Normalización relativa (ignora el brillo de la sala, resalta el color)
+        double invSum = 1.0 / sum;
+        double xNorm = X_raw * invSum;
+        double yNorm = Y_raw * invSum;
+        double zNorm = Z_raw * invSum;
+
+        // Matriz de conversión XYZ a sRGB (D65) usando literales 'f' para usar el FPU por hardware
+        float rLinear =  3.2404542f * xNorm - 1.5371385f * yNorm - 0.4985314f * zNorm;
+        float gLinear = -0.9692660f * xNorm + 1.8760108f * yNorm + 0.0415560f * zNorm;
+        float bLinear =  0.0556434f * xNorm - 0.2040259f * yNorm + 1.0572252f * zNorm;
+
+        // Clamping a 0.0f (corte inferior)
+        if (rLinear < 0.0f) rLinear = 0.0f;
+        if (gLinear < 0.0f) gLinear = 0.0f;
+        if (bLinear < 0.0f) bLinear = 0.0f;
+
+        // Encontrar el valor máximo entre los canales
+        float maxVal = rLinear;
+        if (gLinear > maxVal) maxVal = gLinear;
+        if (bLinear > maxVal) maxVal = bLinear;
+        if (maxVal > 0.0f) 
+        {
+            float invMaxVal = 1.0f / maxVal;
+            rLinear *= invMaxVal;
+            gLinear *= invMaxVal;
+            bLinear *= invMaxVal;
+        }
+    
+        // Corrección Gamma rápida optimizada para FPU de STM32
+        // La raíz cuadrada (sqrtf) es calculada en hardware en la mayoría de STM32 (Cortex M4/M7/M33)
+        float rGamma = sqrtf(rLinear);
+        float gGamma = sqrtf(gLinear);
+        float bGamma = sqrtf(bLinear);
+
+        // Escalar al rango de 8 bits (0-255) y redondear
+        opt4048->RGB_R = (uint8_t)(rGamma * 255.0f + 0.5f);
+        opt4048->RGB_G = (uint8_t)(gGamma * 255.0f + 0.5f);
+        opt4048->RGB_B = (uint8_t)(bGamma * 255.0f + 0.5f);
     }
     else
     {

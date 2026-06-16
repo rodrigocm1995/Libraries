@@ -246,16 +246,20 @@ typedef enum
 
 typedef struct 
 {
-  I2C_HandleTypeDef *hi2c;
-  uint8_t            _devAddress;
   double 			 cieX;
   double 			 cieY;
   double 		     cieZ;
+  double             RGB_R;
+  double             RGB_G;
+  double             RGB_B;
+  double             cieSum;
   double 		     lux;
   uint16_t           counterch0;
   uint16_t           counterch1;
   uint16_t           counterch2;
   uint16_t           counterch3;
+  uint8_t            _devAddress;
+  I2C_HandleTypeDef *hi2c;
 } OPT4048_HandleTypeDef;  
 
 typedef enum
