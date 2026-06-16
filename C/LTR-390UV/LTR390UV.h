@@ -35,22 +35,29 @@
 #ifndef INC_LTR390UV_H_
 #define INC_LTR390UV_H_
 
-#define LTR390UV_ADDRESS                         0x53 
-#define LTR390UV_TRIALS                          5
-#define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
+#define LTR390UV_ADDRESS                        0x53 
+#define LTR390UV_TRIALS                         5
 
 // Registers
-#define LTR390UV_MAIN_CONTROL_REG                0x00
-#define LTR390UV_ALS_UV_MEAS_RATE_REG            0x04
-#define LTR390UV_ALS_UVS_GAIN_REG                0x05
-#define LTR390UV_DEVICE_ID_REG                   0x06
-#define LTR390UV_MAIN_STATUS_REG                 0x07
-#define LTR390UV_ALS_DATA_REG                    0x0D
-#define LTR390UV_UVS_DATA_REG                    0x10
-#define LTR390UV_INT_CONFIG_REG                  0x19
-#define LTR390UV_INT_PERSIST_REG                 0x1A
-#define LTR390UV_ALS_UVS_THRESS_UP_REG           0x21
-#define LTR390UV_ALS_UVS_THRESS_LOW_REG          0x24
+#define LTR390UV_MAIN_CTRL_REG                  0x00    /* ALS/UVS operation mode control, SW reset */
+#define LTR390UV_ALS_UV_MEAS_RATE_REG           0x04    /* ALS/UVS measurement rate and resolution in Acxtive mode */
+#define LTR390UV_ALS_UVS_GAIN_REG               0x05    /* ALS/USV analog Gain range */
+#define LTR390UV_DEVICE_ID_REG                  0x06    /* Part number ID and revision ID */
+#define LTR390UV_MAIN_STATUS_REG                0x07    /* Power-On status, Interrupt status, Data status */
+#define LTR390UV_ALS_DATA_0_REG                 0x0D    /* ALS ADC measurement data, LSB */
+#define LTR390UV_ALS_DATA_1_REG                 0x0E    /* ALS ADC measurement data */
+#define LTR390UV_ALS_DATA_2_REG                 0x0F    /* ALS ADC measurement data, MSB */
+#define LTR390UV_INT_PERSIST_REG                0x10    /* UVS ADC measurement data, LSB */
+#define LTR390UV_ALS_UVS_THRESS_UP_REG          0x11    /* UVS ADC measurement data */
+#define LTR390UV_ALS_UVS_THRESS_LOW_REG         0x12    /* UVS ADC measurement data, MSB */
+#define LTR390UV_INT_CFG_REG                    0x19    /* Interrupt configuration */
+#define LTR390UV_INT_PERSIST_REG                0x1A    /* Interrupt persist setting */
+#define LTR390UV_ALS_UVS_THRESS_UP_0_REG        0x21    /* ALS/UVS interrupt upper threshold, LSB */
+#define LTR390UV_ALS_UVS_THRESS_UP_1_REG        0x22    /* ALS/UVS interrupt upper threshold, intervening bits */
+#define LTR390UV_ALS_UVS_THRESS_UP_2_REG        0x23    /* ALS/UVS interrupt upper threshold, MSB */
+#define LTR390UV_ALS_UVS_THRESS_LOW_0_REG       0x24    /* ALS/UVS interrupt lower threshold, LSB */
+#define LTR390UV_ALS_UVS_THRESS_LOW_1_REG       0x25    /* ALS/UVS interrupt lower threshold, intervening bits */
+#define LTR390UV_ALS_UVS_THRESS_LOW_2_REG       0x26    /* ALS/UVS interrupt lower threshold, MSB */
 
 
 // Masks
