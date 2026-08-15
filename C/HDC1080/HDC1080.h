@@ -73,12 +73,6 @@ typedef enum
 
 typedef enum
 {
-  HDC1080_BAT_VOLTAGE_G2_8                    = 0x0000,
-  HDC1080_BAT_VOLTAGE_L2_8                    = 0x0800,
-} HDC1080BatteryStatus_t;
-
-typedef enum
-{
   HDC1080_TEMP_OR_HUMIDITY                    = 0x0U,
   HDC1080_TEMP_AND_HUMIDITY                   = 0x1U,
 } HDC1080_Mode_TypeDef;

@@ -154,13 +154,6 @@ typedef enum
 	OPT3001_ALERT_ACTIVE_HIGH			= 0x1U,
 }OPT3001_AlertPinPol_TypeDef;
 
-
-typedef enum
-{
-	OPT3001_MASK_EXP_ACTIVE				= 0x0004,
-	OPT3001_MASK_EXP_DISABLED			= 0x0000,
-}OPT3001_MaskExp_HandleTypeDef;
-
 typedef enum
 {
 	OPT3001_ONE_FAULT_COUNT				= 0x0U,
@@ -198,7 +191,6 @@ void OPT3001_SetConvTime(OPT3001_HandleTypeDef *opt3001, OPT3001_ConvTime_TypeDe
 void OPT3001_SetMode(OPT3001_HandleTypeDef *opt3001, OPT3001_Mode_TypeDef mode);
 void OPT3001_SetLatchMode(OPT3001_HandleTypeDef *opt3001, OPT3001_Latch_TypeDef latchMode);
 void OPT3001_SetAlertPinPolarity(OPT3001_HandleTypeDef *opt3001, OPT3001_AlertPinPol_TypeDef polarity);
-void OPT3001_SetExponentFIeld(OPT3001_HandleTypeDef *opt3001, OPT3001_MaskExp_HandleTypeDef maskExp);
 void OPT3001_SetFaultCount(OPT3001_HandleTypeDef *opt3001, OPT3001_FaultCount_TypeDef faultCount);
 
 /* CONFIGURATION register bits flags */
