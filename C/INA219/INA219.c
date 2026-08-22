@@ -186,6 +186,15 @@ HAL_StatusTypeDef INA219_GetCalibration(INA219_HandleTypeDef *ina219, uint16_t *
   * @note   This function modifies the MODE bits in the Configuration register.
   * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
   * @param  mode Selected operating mode (e.g. continuous, triggered, power-down).
+  *         This parameter can be one of the following values:
+  *         @arg INA219_POWERDOWN_MODE
+  *         @arg INA219_SHUNTVOLTAGETRIG_MODE
+  *         @arg INA219_BUSVOLTAGETRIG_MODE
+  *         @arg INA219_SHUNTBUS_TRIG_MODE
+  *         @arg INA219_ADC_OFF_DISABLED_MODE
+  *         @arg INA219_SHUNTVOLTAGE_CONTINUOUS_MODE
+  *         @arg INA219_BUSVOLTAGE_CONTINUOUS_MODE
+  *         @arg INA219_SHUNTBUS_CONTINUOUS_MODE
   * @return HAL status
   */
 HAL_StatusTypeDef INA219_SetMode(INA219_HandleTypeDef *ina219, INA219_Mode_TypeDef mode)
@@ -206,6 +215,18 @@ HAL_StatusTypeDef INA219_SetMode(INA219_HandleTypeDef *ina219, INA219_Mode_TypeD
   * @note   This function modifies the SADC bits in the Configuration register.
   * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
   * @param  shuntADCResolution Selected resolution or number of averages.
+  *         This parameter can be one of the following values:
+  *         @arg INA219_ADC_9_BIT_RESOLUTION
+  *         @arg INA219_ADC_10_BIT_RESOLUTION
+  *         @arg INA219_ADC_11_BIT_RESOLUTION
+  *         @arg INA219_ADC_12_BIT_RESOLUTION
+  *         @arg INA219_ADC_2_SAMPLES
+  *         @arg INA219_ADC_4_SAMPLES
+  *         @arg INA219_ADC_8_SAMPLES
+  *         @arg INA219_ADC_16_SAMPLES
+  *         @arg INA219_ADC_32_SAMPLES
+  *         @arg INA219_ADC_64_SAMPLES
+  *         @arg INA219_ADC_128_SAMPLES
   * @return HAL status
   */
 HAL_StatusTypeDef INA219_SetShuntADCResolution(INA219_HandleTypeDef *ina219, INA219_ADCResolution_TypeDef shuntADCResolution)
@@ -226,6 +247,18 @@ HAL_StatusTypeDef INA219_SetShuntADCResolution(INA219_HandleTypeDef *ina219, INA
   * @note   This function modifies the BADC bits in the Configuration register.
   * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
   * @param  busADCResolution Selected resolution or number of averages.
+  *         This parameter can be one of the following values:
+  *         @arg INA219_ADC_9_BIT_RESOLUTION
+  *         @arg INA219_ADC_10_BIT_RESOLUTION
+  *         @arg INA219_ADC_11_BIT_RESOLUTION
+  *         @arg INA219_ADC_12_BIT_RESOLUTION
+  *         @arg INA219_ADC_2_SAMPLES
+  *         @arg INA219_ADC_4_SAMPLES
+  *         @arg INA219_ADC_8_SAMPLES
+  *         @arg INA219_ADC_16_SAMPLES
+  *         @arg INA219_ADC_32_SAMPLES
+  *         @arg INA219_ADC_64_SAMPLES
+  *         @arg INA219_ADC_128_SAMPLES
   * @return HAL status
   */
 HAL_StatusTypeDef INA219_SetBusADCResolution(INA219_HandleTypeDef *ina219, INA219_ADCResolution_TypeDef busADCResolution)
@@ -246,6 +279,11 @@ HAL_StatusTypeDef INA219_SetBusADCResolution(INA219_HandleTypeDef *ina219, INA21
   * @note   This function modifies the PG bits in the Configuration register.
   * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
   * @param  shuntVoltageRange Selected PGA gain (e.g. 40mV, 80mV, 160mV, 320mV).
+  *         This parameter can be one of the following values:
+  *         @arg INA219_PGAGAIN_40_MILI_VOLT
+  *         @arg INA219_PGAGAIN_80_MILI_VOLT
+  *         @arg INA219_PGAGAIN_160_MILI_VOLT
+  *         @arg INA219_PGAGAIN_320_MILI_VOLT
   * @return HAL status
   */
 HAL_StatusTypeDef INA219_SetShuntVoltageRange(INA219_HandleTypeDef *ina219, INA219_ShuntVoltagePGA_TypeDef shuntVoltageRange)
@@ -266,6 +304,9 @@ HAL_StatusTypeDef INA219_SetShuntVoltageRange(INA219_HandleTypeDef *ina219, INA2
   * @note   This function modifies the BRNG bit in the Configuration register.
   * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
   * @param  busVoltageRange Selected range (16V or 32V).
+  *         This parameter can be one of the following values:
+  *         @arg INA219_BUSVOLTAGERANGE_16V
+  *         @arg INA219_BUSVOLTAGERANGE_32V
   * @return HAL status
   */
 HAL_StatusTypeDef INA219_SetBusVoltageRange(INA219_HandleTypeDef *ina219, INA219_BusVoltageRange_TypeDef busVoltageRange)
