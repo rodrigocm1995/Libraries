@@ -46,6 +46,9 @@
 #ifndef INC_TMP117_H_
 #define INC_TMP117_H_
 
+#include "main.h" // Provides HAL_StatusTypeDef and I2C_HandleTypeDef to make header self-contained
+
+
 #define TMP117_ADDRESS                          0x48
 #define TMP117_TRIALS                           5
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
@@ -150,7 +153,7 @@ typedef enum
 
 typedef enum
 {
-  TMP117_ALERT_FOR_DATA_READY_FLAG              = 0x1U,
+  TMP117_ALERT_FOR_DATA_READY_FLAG              = 0x1U, 
   TMP117_ALERT_FOR_ALERT_FLAGS                  = 0x0U,
 }TMP117_DRALERT_TypeDef;
 
@@ -171,19 +174,16 @@ typedef struct
 } TMP117_HandleTypeDef;
 
 
-/* Register Write & Read */
-HAL_StatusTypeDef TMP117_WriteRegister(TMP117_HandleTypeDef *tmp117, uint8_t registerAddress, uint16_t value);
-uint16_t TMP117_ReadRegister(TMP117_HandleTypeDef *tmp117, uint8_t registerAddress);
+/* Configuration Getters (Status-Return Pattern) */
+HAL_StatusTypeDef TMP117_GetConfiguration(TMP117_HandleTypeDef *tmp117, uint16_t *value);
+HAL_StatusTypeDef TMP117_GetTempHighLimitReg(TMP117_HandleTypeDef *tmp117, uint16_t *value);
+HAL_StatusTypeDef TMP117_GetTempLowLimitReg(TMP117_HandleTypeDef *tmp117, uint16_t *value);
+HAL_StatusTypeDef TMP117_GetDeviceId(TMP117_HandleTypeDef *tmp117, uint16_t *value);
+HAL_StatusTypeDef TMP117_GetEepromUnlock(TMP117_HandleTypeDef *tmp117, uint16_t *value);
+HAL_StatusTypeDef TMP117_GetEeprom1(TMP117_HandleTypeDef *tmp117, uint16_t *value);
+HAL_StatusTypeDef TMP117_GetEeprom2(TMP117_HandleTypeDef *tmp117, uint16_t *value);
+HAL_StatusTypeDef TMP117_GetEeprom3(TMP117_HandleTypeDef *tmp117, uint16_t *value);
 
-/* Configuration Getters */
-uint16_t TMP117_GetConfiguration(TMP117_HandleTypeDef *tmp117);
-uint16_t TMP117_GetTempHighLimitReg(TMP117_HandleTypeDef *tmp117);
-uint16_t TMP117_GetTempLowLimitReg(TMP117_HandleTypeDef *tmp117);
-uint16_t TMP117_GetDeviceId(TMP117_HandleTypeDef *tmp117);
-uint16_t TMP117_GetEepromUnlock(TMP117_HandleTypeDef *tmp117);
-uint16_t TMP117_GetEeprom1(TMP117_HandleTypeDef *tmp117);
-uint16_t TMP117_GetEeprom2(TMP117_HandleTypeDef *tmp117);
-uint16_t TMP117_GetEeprom3(TMP117_HandleTypeDef *tmp117);
 
 /* Diagnostic Readings */
 _Bool TMP117_EepromBusyFlag(TMP117_HandleTypeDef *tmp117);
@@ -197,13 +197,13 @@ HAL_StatusTypeDef TMP117_SetEeprom2(TMP117_HandleTypeDef *tmp117, uint16_t data)
 HAL_StatusTypeDef TMP117_SetEeprom3(TMP117_HandleTypeDef *tmp117, uint16_t data);
 
 /* Initialization & Control */
-void TMP117_Init(TMP117_HandleTypeDef *tmp117, I2C_HandleTypeDef *i2c, uint8_t devAddress);
-void TMP117_ResetDevice(TMP117_HandleTypeDef *tmp117);
-void TMP117_SetAlertPinFunction(TMP117_HandleTypeDef *tmp117, TMP117_DRALERT_TypeDef pinFunction);
-void TMP117_SetAlertPinPolarity(TMP117_HandleTypeDef *tmp117, TMP117_AlertPinPol_TypeDef polarity);
-void TMP117_SetThermAlertMode(TMP117_HandleTypeDef *tmp117, TMP117_ThermAlertMode_TypeDef tnA);
-void TMP117_SetAverage(TMP117_HandleTypeDef *tmp117, TMP117_Avg_TypeDef avg);
-void TMP117_SetMode(TMP117_HandleTypeDef *tmp117, TMP117_Mode_TypeDef mode);
+HAL_StatusTypeDef TMP117_Init(TMP117_HandleTypeDef *tmp117, I2C_HandleTypeDef *i2c, uint8_t devAddress);
+HAL_StatusTypeDef TMP117_ResetDevice(TMP117_HandleTypeDef *tmp117);
+HAL_StatusTypeDef TMP117_SetAlertPinFunction(TMP117_HandleTypeDef *tmp117, TMP117_DRALERT_TypeDef pinFunction);
+HAL_StatusTypeDef TMP117_SetAlertPinPolarity(TMP117_HandleTypeDef *tmp117, TMP117_AlertPinPol_TypeDef polarity);
+HAL_StatusTypeDef TMP117_SetThermAlertMode(TMP117_HandleTypeDef *tmp117, TMP117_ThermAlertMode_TypeDef tnA);
+HAL_StatusTypeDef TMP117_SetAverage(TMP117_HandleTypeDef *tmp117, TMP117_Avg_TypeDef avg);
+HAL_StatusTypeDef TMP117_SetMode(TMP117_HandleTypeDef *tmp117, TMP117_Mode_TypeDef mode);
 
 /* Status flags and additional configuration */
 _Bool TMP117_IsEEPROMBusy(TMP117_HandleTypeDef *tmp117);
@@ -211,8 +211,9 @@ _Bool TMP117_IsDataReady(TMP117_HandleTypeDef *tmp117);
 _Bool TMP117_IsLowAlertSet(TMP117_HandleTypeDef *tmp117);
 _Bool TMP117_IsHighAlertSet(TMP117_HandleTypeDef *tmp117);
 HAL_StatusTypeDef TMP117_SetConvTime(TMP117_HandleTypeDef *tmp117, TMP117_ConvTime_TypeDef convTime);
-void TMP117_SetHighLimit_C(TMP117_HandleTypeDef *tmp117, double highLimit);
-void TMP117_SetLowLimit_C(TMP117_HandleTypeDef *tmp117, double lowLimit);
+HAL_StatusTypeDef TMP117_SetHighLimit_C(TMP117_HandleTypeDef *tmp117, double highLimit);
+HAL_StatusTypeDef TMP117_SetLowLimit_C(TMP117_HandleTypeDef *tmp117, double lowLimit);
 double TMP117_GetTemperature_C(TMP117_HandleTypeDef *tmp117);
+
 
 #endif

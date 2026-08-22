@@ -1,167 +1,472 @@
-#include "main.h"
+#include "i2c_bus.h"
 #include "math.h"
+#include "stm32f3xx_hal_def.h"
 #include "INA219.h"
 
-
+/* =======================================================================================
+   CAPA DE ADAPTACIÓN PRIVADA (WRAPPERS INTERNOS)
+   ======================================================================================= */
 
 /**
-  * @brief  Write an amount of data in blocking mode to a specific memory address
-  * @param  ina219 Pointer to a I2C_HandleTypeDef structure that contains
-  *                the configuration information for the specified I2C.
-  * @param  registerAddress Target device address: The device 7 bits address value
-  *         in datasheet must be shifted to the left before calling the interface
-  * @param  value The data that must be written in the specified register
+  * @brief  Write a 16-bit register value to the INA219 sensor via I2C
+  * @note   This is an internal helper function. Transmits data in Big-Endian format.
+  * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
+  * @param  registerAddress Target register address on the INA219.
+  * @param  value 16-bit value to be written.
+  * @return HAL status
   */
-void writeRegister(Ina219_t *ina219, uint8_t registerAddress, uint16_t value)
+static inline HAL_StatusTypeDef INA219_WriteRegister(INA219_HandleTypeDef *ina219, uint8_t registerAddress, uint16_t value)
 {
-  uint8_t address[2];
-  
-  address[0] = (value >> 8) & 0xFF;
-  address[1] = (value >> 0) & 0xFF;
-  uint8_t isDeviceReady = HAL_I2C_IsDeviceReady(ina219->hi2c, (ina219->devAddress) << 1, INA219_TRIALS, HAL_MAX_DELAY);
-  if (isDeviceReady == HAL_OK)
-  {
-	  HAL_I2C_Mem_Write(ina219->hi2c, (ina219->devAddress) << 1, registerAddress, I2C_MEMADD_SIZE_8BIT, (uint8_t*)address, I2C_MEMADD_SIZE_16BIT, HAL_MAX_DELAY);
-  }
-  
+    return I2C_Bus_WriteRegister16_BE(ina219->hi2c, ina219->_devAddress, registerAddress, value);
 }
 
 /**
-  * @brief  Read an amount of data in blocking mode from a specific memory address
-  * @param  hi2c Pointer to a I2C_HandleTypeDef structure that contains
-  *                the configuration information for the specified I2C.
-  * @param  registerAddress Target device address: The device 7 bits address value
-  * @retval 16 bit data read from register's device
+  * @brief  Read a 16-bit register value from the INA219 sensor via I2C
+  * @note   This is an internal helper function. Reads data in Big-Endian format.
+  * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
+  * @param  registerAddress Target register address on the INA219.
+  * @param  value Pointer to store the read 16-bit value.
+  * @return HAL status
   */
-uint16_t readRegister(Ina219_t *ina219, uint8_t registerAddress)
+static inline HAL_StatusTypeDef INA219_ReadRegister(INA219_HandleTypeDef *ina219, uint8_t registerAddress, uint16_t *value)
 {
-  uint8_t registerResponse[2];
-  uint8_t isDeviceReady = HAL_I2C_IsDeviceReady(ina219->hi2c, (ina219->devAddress) << 1, INA219_TRIALS, HAL_MAX_DELAY);
-  if (isDeviceReady == HAL_OK)
-  {
-	  HAL_I2C_Mem_Read(ina219->hi2c, (ina219->devAddress) << 1, registerAddress, I2C_MEMADD_SIZE_8BIT, registerResponse, sizeof(registerResponse), HAL_MAX_DELAY);
-  }
-
-  return ((registerResponse[0] << 8) | registerResponse[1]);
-}
-
-uint8_t ina219_default_init(Ina219_t *ina219, I2C_HandleTypeDef *i2c, uint8_t devAddress)
-{
-  ina219->hi2c = i2c;
-  ina219->devAddress = devAddress;
-
-  uint16_t configValue = INA219_BUSVOLTAGERANGE_32V | INA219_PGAGAIN_320_MILI_VOLT | INA219_BUS_ADC_12_BIT_RESOLUTION | INA219_SHUNT_ADC_12_BIT_RESOLUTION | INA219_SHUNTBUS_CONTINUOUS_MODE;
-  uint8_t isDeviceReady = HAL_I2C_IsDeviceReady(i2c, devAddress << 1, INA219_TRIALS, HAL_MAX_DELAY);
-
-  if (isDeviceReady == HAL_OK)
-  {
-    writeRegister(ina219, INA219_CONFIGURATION_REG, configValue);
-    return 1;
-  }
-  return 0;
+    return I2C_Bus_ReadRegister16_BE(ina219->hi2c, ina219->_devAddress, registerAddress, value);
 }
 
 /**
-  * @brief  Initializing device with custom values, that value is written in CONFIGURATION REGISTER
-  * @param  hi2c Pointer to a I2C_HandleTypeDef structure that contains
-  *                the configuration information for the specified I2C.
-  * @param  registerAddress Target device address: The device 7 bits address value
-  * @param  busVoltageRange: set the maximun bus voltage supportef by device 16V or 32V range
-  * @param  pgaGain: Sets PGA (programmable Gain Amplifier) gain and range, this is the maximum voltage range the device will measure between Rshunt terminals
-  * @param  busAdcResolution:
-  * @retval return 1 if communication is successfully
+  * @brief  Round the minimum Current LSB to the next clean 1-2-5 step of a power of 10
+  * @note   This is an internal helper function. It implements a standard 1-2-5 rounding 
+  *         rule (e.g. 10uA, 20uA, 50uA, 100uA) to select a user-friendly Current LSB.
+  *         The selected round LSB is guaranteed to satisfy the datasheet constraint:
+  *         lsbMin <= roundedLsb < 2.5 * lsbMin (well below the 8x limit).
+  * @param  lsbMin The calculated absolute minimum Current LSB (in Amperes/LSB).
+  * @return The rounded, user-friendly Current LSB value (in Amperes).
   */
-uint8_t ina219_init(Ina219_t *ina219, I2C_HandleTypeDef *i2c, uint8_t devAddress, BusVoltageRange_t busvoltageRange, ShuntPGAGain_t pgaGain, BusADCResolution_t busAdcResolution, ShuntADCResolution_t shuntAdcResolution, Mode_t mode)
+static float INA219_RoundCurrentLsb(float lsbMin)
 {
-  ina219->hi2c = i2c;
-  ina219->devAddress = devAddress;
+    // Find power of 10 below lsbMin
+    float logLsb = log10(lsbMin);
+    float powerOf10 = pow(10, floor(logLsb));
+    
+    // Normalize to a value between 1.0 and 10.0
+    float normalized = lsbMin / powerOf10;
+    float roundedLsb;
+    
+    // Round up to the nearest 1, 2, or 5 step
+    if (normalized <= 1.0f)
+    {
+        roundedLsb = 1.0f * powerOf10;
+    }
+    else if (normalized <= 2.0f)
+    {
+        roundedLsb = 2.0f * powerOf10;
+    }
+    else if (normalized <= 5.0f)
+    {
+        roundedLsb = 5.0f * powerOf10;
+    }
+    else
+    {
+        roundedLsb = 10.0f * powerOf10;
+    }
+    
+    return roundedLsb;
+}
 
-  uint16_t configValue = busvoltageRange | pgaGain | busAdcResolution | shuntAdcResolution | mode;
-  uint8_t isDeviceReady = HAL_I2C_IsDeviceReady(i2c, devAddress << 1, INA219_TRIALS, HAL_MAX_DELAY);
+/* =======================================================================================
+   CAPA DE APLICACIÓN 
+   ======================================================================================= */
 
-  if (isDeviceReady == HAL_OK)
-  {
-    writeRegister(ina219, INA219_CONFIGURATION_REG, configValue);
-    return 1;
-  }
-  return 0;
+/**
+  * @brief  Initialize the INA219 device handle and configure default parameter values
+  * @note   This function sets up the hi2c handler and sets the default conversion step sizes
+  *         for shunt voltage (10 uV) and bus voltage (4 mV) registers.
+  * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
+  * @param  i2c Pointer to a HAL I2C_HandleTypeDef structure.
+  * @param  devAddress The 7-bit physical I2C device address.
+  * @return HAL status
+  */
+HAL_StatusTypeDef INA219_Init(INA219_HandleTypeDef *ina219, I2C_HandleTypeDef *i2c, uint8_t devAddress)
+{
+    ina219->hi2c = i2c;
+    ina219->_devAddress = devAddress;
+    ina219->_vShuntAcc = 0.00001f; // Shunt Voltage, 1 LSB Step size = 10 uV
+    ina219->_vBusAcc =  0.004f;    // Bus Voltage, 1 LSB step size = 4 mV
+
+    // Reset the device to ensure a clean default state
+    if (INA219_ResetDevice(ina219) != HAL_OK)
+    {
+        return HAL_ERROR;
+    }
+
+    uint16_t config = 0;
+    config |= (INA219_BUSVOLTAGERANGE_32V << INA219_BRGN_Pos) & INA219_BRGN;
+    config |= (INA219_PGAGAIN_320_MILI_VOLT << INA219_PG_Pos) & INA219_PG;
+    config |= (INA219_ADC_128_SAMPLES << INA219_BADC_Pos) & INA219_BADC;
+    config |= (INA219_ADC_128_SAMPLES << INA219_SADC_Pos) & INA219_SADC;
+    config |= (INA219_SHUNTBUS_CONTINUOUS_MODE << INA219_MODE_Pos) & INA219_MODE;
+
+    return INA219_WriteRegister(ina219, INA219_CONFIGURATION_REG, config);
 }
 
 /**
-  * @brief  Write into the CALIBRATION_REGISTER which enables the user to scale Current Register and Power Register
-  * @param  hi2c Pointer to a I2C_HandleTypeDef structure that contains
-  *                the configuration information for the specified I2C.
-  * @param  RshuntValue Target device address: The device 7 bits address value
-  * @param  maxCurrent: set the maximun bus voltage supported by device 16V or 32V range
-  * @retval return 1 if communication is successfully
+  * @brief  Read the current raw value from the Configuration register
+  * @note   The Configuration register contains settings for operation mode, SADC, BADC, PG, and BRNG.
+  * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
+  * @param  value Pointer to store the 16-bit configuration register value.
+  * @return HAL status
   */
-uint16_t ina219_calibration(Ina219_t *ina219, double RshuntValue, uint8_t maxCurrent)
+HAL_StatusTypeDef INA219_GetConfiguration(INA219_HandleTypeDef *ina219, uint16_t *value)
 {
-	ina219->Rshunt = RshuntValue;
-	ina219->Imax = maxCurrent;
-	//double currentLSB = (double)((maxCurrent) / pow(2, 15)) * 2.0;
-	double currentLSB = (double)((maxCurrent) / pow(2, 15));
-	uint16_t cal = trunc(0.04096 / (currentLSB * RshuntValue));
-	if (cal > pow(2,16))
-	{
-		return 0;
-	}
-	else
-	{
-		uint16_t cal1 = cal;
-		//cal1 = 3428;
-		writeRegister(ina219, INA219_CALIBRATION_REG, cal1);
-		return cal1;
-	}
+    return INA219_ReadRegister(ina219, INA219_CONFIGURATION_REG, value);
 }
 
-double ina219ReadShuntVoltage(Ina219_t *ina219)
+/**
+  * @brief  Read the current raw value from the Shunt Voltage register
+  * @note   Stores the measurement drop across the shunt resistor. 1 LSB = 10 uV.
+  * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
+  * @param  value Pointer to store the 16-bit raw shunt voltage register value.
+  * @return HAL status
+  */
+HAL_StatusTypeDef INA219_GetShuntVoltage(INA219_HandleTypeDef *ina219, uint16_t *value)
 {
-	double result = readRegister(ina219, INA219_SHUNTVOLTAGE_REG);
-
-	return (result * 0.01);
+    return INA219_ReadRegister(ina219, INA219_SHUNTVOLTAGE_REG, value);
 }
 
-double ina219ReadBusVoltage(Ina219_t *ina219)
+/**
+  * @brief  Read the current raw value from the Bus Voltage register
+  * @note   Stores the bus voltage measurement data. Bits 15-3 are the value, 1 LSB = 4 mV.
+  * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
+  * @param  value Pointer to store the 16-bit raw bus voltage register value.
+  * @return HAL status
+  */
+HAL_StatusTypeDef INA219_GetBusVoltage(INA219_HandleTypeDef *ina219, uint16_t *value)
 {
-	double result = (readRegister(ina219, INA219_BUSVOLTAGE_REG)) >> 3;
-	return result * (4.0/1000.0);
+    return INA219_ReadRegister(ina219, INA219_BUSVOLTAGE_REG, value);
 }
 
-double ina219ReadCurrent(Ina219_t *ina219)
+/**
+  * @brief  Read the current raw value from the Power register
+  * @note   Stores the raw calculated load power value. Power LSB = 20 * Current LSB.
+  * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
+  * @param  value Pointer to store the 16-bit raw power register value.
+  * @return HAL status
+  */
+HAL_StatusTypeDef INA219_GetPower(INA219_HandleTypeDef *ina219, uint16_t *value)
 {
-	double rawCurrent = readRegister(ina219, INA219_CURRENT_REG);
-	//double current = rawCurrent * ((ina219->Imax) / pow(2, 15)) * (1000.0) * (2.0); // pow(2,15)*1000*2 = CURRENT_LSB
-	double current = rawCurrent * ((ina219->Imax) / pow(2, 15)) * (1000.0);
-	return current;
+    return INA219_ReadRegister(ina219, INA219_POWER_REG, value);
 }
 
-double ina219ReadPower(Ina219_t *ina219)
+/**
+  * @brief  Read the current raw value from the Current register
+  * @note   Stores the raw calculated load current value. 1 LSB = Current LSB.
+  * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
+  * @param  value Pointer to store the 16-bit raw current register value.
+  * @return HAL status
+  */
+HAL_StatusTypeDef INA219_GetCurrent(INA219_HandleTypeDef *ina219, uint16_t *value)
 {
-	double rawPower = readRegister(ina219, INA219_POWER_REG);
-	//double currentLSB = (ina219->Imax) / pow(2, 15) * 2.0;
-	double currentLSB = (ina219->Imax) / pow(2, 15);
-	double powerLSB = 20.0 * currentLSB;
-	double power = rawPower * powerLSB;
-
-	return power;
+    return INA219_ReadRegister(ina219, INA219_CURRENT_REG, value);
 }
 
-_Bool ina219DataReady(Ina219_t *ina219)
+/**
+  * @brief  Read the current raw value from the Calibration register
+  * @note   Stores the calibration value used to program the Current LSB and Power LSB.
+  * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
+  * @param  value Pointer to store the 16-bit raw calibration register value.
+  * @return HAL status
+  */
+HAL_StatusTypeDef INA219_GetCalibration(INA219_HandleTypeDef *ina219, uint16_t *value)
 {
-  _Bool isDataReady;
-
-  uint16_t conversionReady = readRegister(ina219, INA219_BUSVOLTAGE_REG);
-  isDataReady = CHECK_BIT(conversionReady,1);
-
-  return isDataReady;
+    return INA219_ReadRegister(ina219, INA219_CALIBRATION_REG, value);
 }
 
-uint8_t ina219CorrectedCalibration(Ina219_t *ina219, uint16_t calValue, double inaCurrent, double measuredShuntCurrent)
+/**
+  * @brief  Configure the operating mode of the INA219 sensor
+  * @note   This function modifies the MODE bits in the Configuration register.
+  * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
+  * @param  mode Selected operating mode (e.g. continuous, triggered, power-down).
+  * @return HAL status
+  */
+HAL_StatusTypeDef INA219_SetMode(INA219_HandleTypeDef *ina219, INA219_Mode_TypeDef mode)
 {
-	uint16_t correctedFullScaleCal = trunc((calValue*measuredShuntCurrent)/(inaCurrent));
-	writeRegister(ina219, INA219_CALIBRATION_REG, correctedFullScaleCal);
+    uint16_t regValue = 0;
 
-	return 1;
+    if (INA219_GetConfiguration(ina219, &regValue) == HAL_OK)
+    {
+        regValue &= ~INA219_MODE;
+        regValue |= (mode << INA219_MODE_Pos) & INA219_MODE;
+        return INA219_WriteRegister(ina219, INA219_CONFIGURATION_REG, regValue);
+    }
+    return HAL_ERROR;
 }
 
+/**
+  * @brief  Configure the ADC resolution or averaging for the shunt voltage measurement
+  * @note   This function modifies the SADC bits in the Configuration register.
+  * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
+  * @param  shuntADCResolution Selected resolution or number of averages.
+  * @return HAL status
+  */
+HAL_StatusTypeDef INA219_SetShuntADCResolution(INA219_HandleTypeDef *ina219, INA219_ADCResolution_TypeDef shuntADCResolution)
+{
+    uint16_t regValue = 0;
+
+    if (INA219_GetConfiguration(ina219, &regValue) == HAL_OK)
+    {
+        regValue &= ~INA219_SADC;
+        regValue |= (shuntADCResolution << INA219_SADC_Pos) & INA219_SADC;
+        return INA219_WriteRegister(ina219, INA219_CONFIGURATION_REG, regValue);
+    }
+    return HAL_ERROR;
+}
+
+/**
+  * @brief  Configure the ADC resolution or averaging for the bus voltage measurement
+  * @note   This function modifies the BADC bits in the Configuration register.
+  * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
+  * @param  busADCResolution Selected resolution or number of averages.
+  * @return HAL status
+  */
+HAL_StatusTypeDef INA219_SetBusADCResolution(INA219_HandleTypeDef *ina219, INA219_ADCResolution_TypeDef busADCResolution)
+{
+    uint16_t regValue = 0;
+
+    if (INA219_GetConfiguration(ina219, &regValue) == HAL_OK)
+    {
+        regValue &= ~INA219_BADC;
+        regValue |= (busADCResolution << INA219_BADC_Pos) & INA219_BADC;
+        return INA219_WriteRegister(ina219, INA219_CONFIGURATION_REG, regValue);
+    }
+    return HAL_ERROR;
+}
+
+/**
+  * @brief  Configure the PGA gain range for the shunt voltage measurement
+  * @note   This function modifies the PG bits in the Configuration register.
+  * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
+  * @param  shuntVoltageRange Selected PGA gain (e.g. 40mV, 80mV, 160mV, 320mV).
+  * @return HAL status
+  */
+HAL_StatusTypeDef INA219_SetShuntVoltageRange(INA219_HandleTypeDef *ina219, INA219_ShuntVoltagePGA_TypeDef shuntVoltageRange)
+{
+    uint16_t regValue = 0;
+
+    if (INA219_GetConfiguration(ina219, &regValue) == HAL_OK)
+    {
+        regValue &= ~INA219_PG;
+        regValue |= (shuntVoltageRange << INA219_PG_Pos) & INA219_PG;
+        return INA219_WriteRegister(ina219, INA219_CONFIGURATION_REG, regValue);
+    }
+    return HAL_ERROR;
+}
+
+/**
+  * @brief  Configure the bus voltage full-scale range on the INA219 sensor
+  * @note   This function modifies the BRNG bit in the Configuration register.
+  * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
+  * @param  busVoltageRange Selected range (16V or 32V).
+  * @return HAL status
+  */
+HAL_StatusTypeDef INA219_SetBusVoltageRange(INA219_HandleTypeDef *ina219, INA219_BusVoltageRange_TypeDef busVoltageRange)
+{
+    uint16_t regValue = 0;
+
+    if (INA219_GetConfiguration(ina219, &regValue) == HAL_OK)
+    {
+        regValue &= ~INA219_BRGN;
+        regValue |= (busVoltageRange << INA219_BRGN_Pos) & INA219_BRGN;
+        return INA219_WriteRegister(ina219, INA219_CONFIGURATION_REG, regValue);
+    }
+    return HAL_ERROR;
+}
+
+/**
+  * @brief  Reset the INA219 registers to their default factory values
+  * @note   This function writes to the RST bit and polls until the reset completes.
+  * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
+  * @return HAL status
+  */
+HAL_StatusTypeDef INA219_ResetDevice(INA219_HandleTypeDef *ina219)
+{
+    HAL_StatusTypeDef status = INA219_WriteRegister(ina219, INA219_CONFIGURATION_REG, INA219_RST);
+
+    if (status != HAL_OK)
+    {
+        return status;
+    }
+
+    uint16_t regValue = INA219_RST;
+    uint32_t startTick = HAL_GetTick();
+    const uint32_t timeout = 100;
+
+    do {
+        status = INA219_ReadRegister(ina219, INA219_CONFIGURATION_REG, &regValue);
+        if (status != HAL_OK)
+        {
+            return status;
+        }
+
+        if (!(regValue & INA219_RST)) // if RESET bit = 0
+        {
+            return HAL_OK;
+        }
+    } while ((HAL_GetTick() - startTick) < timeout);
+
+    return HAL_TIMEOUT;
+}
+
+/**
+  * @brief  Calculate and write the Calibration register value based on the shunt resistor and max current
+  * @note   This function implements the mathematical equations of the INA219 datasheet.
+  * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
+  * @param  rShuntValue Value of the shunt resistor in Ohms.
+  * @param  maxCurrent Maximum expected current in Amperes.
+  * @return HAL status
+  */
+HAL_StatusTypeDef INA219_SetCalibration(INA219_HandleTypeDef *ina219, float rShuntValue, float maxCurrent)
+{
+    if (ina219 == NULL || maxCurrent <= 0.0f || rShuntValue <= 0.0f)
+    {
+        return HAL_ERROR;
+    } 
+   
+    ina219->_shuntResistor = rShuntValue;
+    ina219->_maximumCurrent = maxCurrent;
+
+    float currentLsbMinimum = maxCurrent / 32768.0f;
+    ina219->_currentLsbMin = currentLsbMinimum;
+
+    float roundedLsb = INA219_RoundCurrentLsb(currentLsbMinimum);
+    ina219->_currentLsb = roundedLsb;
+
+    uint16_t shuntCal = (uint16_t)(0.04096f / (roundedLsb * rShuntValue));
+
+    return INA219_WriteRegister(ina219, INA219_CALIBRATION_REG, shuntCal);
+}
+
+/**
+  * @brief  Read the shunt voltage and convert it to millivolts
+  * @note   Uses the struct variable _vShuntAcc (which is in Volts) multiplied by 1000.0f to output mV.
+  *         This register stores a signed 2's complement value.
+  * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
+  * @param  shuntVoltage_mV Pointer to store the calculated shunt voltage in mV.
+  * @return HAL status
+  */
+HAL_StatusTypeDef INA219_ReadShuntVoltage_mV(INA219_HandleTypeDef *ina219, float *shuntVoltage_mV)
+{
+    if (shuntVoltage_mV == NULL) return HAL_ERROR;
+    
+    uint16_t regValue = 0;
+    HAL_StatusTypeDef status = INA219_GetShuntVoltage(ina219, &regValue);
+    
+    if (status == HAL_OK)
+    {
+        int16_t signedValue = (int16_t)regValue;
+        *shuntVoltage_mV = (float)signedValue * ina219->_vShuntAcc * 1000.0f;
+    }
+    return status;
+}
+
+/**
+  * @brief  Read the bus voltage and convert it to Volts
+  * @note   Uses the struct variable _vBusAcc (which is in Volts) directly.
+  *         The raw bus voltage value is stored in bits 15-3.
+  * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
+  * @param  busVoltage_V Pointer to store the calculated bus voltage in Volts.
+  * @return HAL status
+  */
+HAL_StatusTypeDef INA219_ReadBusVoltage_V(INA219_HandleTypeDef *ina219, float *busVoltage_V)
+{
+    if (busVoltage_V == NULL) return HAL_ERROR;
+    
+    uint16_t regValue = 0;
+    HAL_StatusTypeDef status = INA219_GetBusVoltage(ina219, &regValue);
+    
+    if (status == HAL_OK)
+    {
+        regValue = regValue >> INA219_BD_Pos;
+        *busVoltage_V = (float)regValue * ina219->_vBusAcc;
+    }
+    return status;
+}
+
+/**
+  * @brief  Read the current flowing through the shunt resistor in Amperes
+  * @note   Current is calculated by multiplying the raw signed value by the programmed Current LSB.
+  * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
+  * @param  current_A Pointer to store the calculated current in Amperes.
+  * @return HAL status
+  */
+HAL_StatusTypeDef INA219_ReadCurrent_A(INA219_HandleTypeDef *ina219, float *current_A)
+{
+    if (current_A == NULL) return HAL_ERROR;
+    
+    uint16_t regValue = 0;
+    HAL_StatusTypeDef status = INA219_GetCurrent(ina219, &regValue);
+    
+    if (status == HAL_OK)
+    {
+        int16_t signedValue = (int16_t)regValue;
+        *current_A = (float)signedValue * ina219->_currentLsb;
+    }
+    return status;
+}
+
+/**
+  * @brief  Read the calculated load power in Watts
+  * @note   Power is calculated using the internal multiplier: Power = RawPower * 20 * Current_LSB.
+  * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
+  * @param  power_W Pointer to store the calculated power in Watts.
+  * @return HAL status
+  */
+HAL_StatusTypeDef INA219_ReadPower_W(INA219_HandleTypeDef *ina219, float *power_W)
+{
+    if (power_W == NULL) return HAL_ERROR;
+    
+    uint16_t regValue = 0;
+    HAL_StatusTypeDef status = INA219_GetPower(ina219, &regValue);
+    
+    if (status == HAL_OK)
+    {
+        // Power is an unsigned 16-bit register.
+        *power_W = (float)regValue * ina219->_currentLsb * 20.0f;
+    }
+    return status;
+}
+
+/**
+  * @brief  Check if the ADC has completed the conversion and new data is ready
+  * @note   Reads bit 1 (CNVR) from the Bus Voltage register.
+  * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
+  * @return Boolean status (true if data is ready, false otherwise).
+  */
+_Bool INA219_IsDataReady(INA219_HandleTypeDef *ina219)
+{
+    uint16_t regValue = 0;
+    if (INA219_ReadRegister(ina219, INA219_BUSVOLTAGE_REG, &regValue) == HAL_OK)
+    {
+        return (regValue & INA219_CNVR_Mask) != 0; // Bit 1 is CNVR
+    }
+    return 0;
+}
+
+/**
+  * @brief  Apply a corrected calibration value to adjust system offset and gain errors
+  * @note   Uses the expected current and measured current from external instruments to calibrate.
+  * @param  ina219 Pointer to a INA219_HandleTypeDef structure.
+  * @param  calValue The base calculated calibration value.
+  * @param  expectedCurrent Expected current value in Amperes.
+  * @param  measuredCurrent Measured current value in Amperes from a multimeter.
+  * @return HAL status
+  */
+HAL_StatusTypeDef INA219_SetCorrectedCalibration(INA219_HandleTypeDef *ina219, uint16_t calValue, float expectedCurrent, float measuredCurrent)
+{
+    if (expectedCurrent == 0.0f)
+    {
+        return HAL_ERROR;
+    }
+    
+    uint16_t correctedFullScaleCal = (uint16_t)((float)calValue * measuredCurrent / expectedCurrent);
+    return INA219_WriteRegister(ina219, INA219_CALIBRATION_REG, correctedFullScaleCal);
+}
