@@ -44,9 +44,15 @@ static inline HAL_StatusTypeDef INA219_ReadRegister(INA219_HandleTypeDef *ina219
   */
 static float INA219_RoundCurrentLsb(float lsbMin)
 {
+
+    if (lsbMin <= 0.0f)
+    {
+        return 0.0f;
+    }
+
     // Find power of 10 below lsbMin
-    float logLsb = log10(lsbMin);
-    float powerOf10 = pow(10, floor(logLsb));
+    float logLsb = log10f(lsbMin);
+    float powerOf10 = powf(10.0f, floorf(logLsb));
     
     // Normalize to a value between 1.0 and 10.0
     float normalized = lsbMin / powerOf10;
@@ -100,10 +106,10 @@ HAL_StatusTypeDef INA219_Init(INA219_HandleTypeDef *ina219, I2C_HandleTypeDef *i
     }
 
     uint16_t config = 0;
-    config |= (INA219_BUSVOLTAGERANGE_32V << INA219_BRGN_Pos) & INA219_BRGN;
-    config |= (INA219_PGAGAIN_320_MILI_VOLT << INA219_PG_Pos) & INA219_PG;
-    config |= (INA219_ADC_128_SAMPLES << INA219_BADC_Pos) & INA219_BADC;
-    config |= (INA219_ADC_128_SAMPLES << INA219_SADC_Pos) & INA219_SADC;
+    config |= (INA219_BUSVOLTAGERANGE_32V      << INA219_BRGN_Pos) & INA219_BRGN;
+    config |= (INA219_PGAGAIN_320_MILI_VOLT    << INA219_PG_Pos)   & INA219_PG;
+    config |= (INA219_ADC_128_SAMPLES          << INA219_BADC_Pos) & INA219_BADC;
+    config |= (INA219_ADC_128_SAMPLES          << INA219_SADC_Pos) & INA219_SADC;
     config |= (INA219_SHUNTBUS_CONTINUOUS_MODE << INA219_MODE_Pos) & INA219_MODE;
 
     return INA219_WriteRegister(ina219, INA219_CONFIGURATION_REG, config);
