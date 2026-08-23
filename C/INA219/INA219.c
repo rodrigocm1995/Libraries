@@ -377,6 +377,14 @@ HAL_StatusTypeDef INA219_SetCalibration(INA219_HandleTypeDef *ina219, float rShu
     {
         return HAL_ERROR;
     } 
+
+    // Avoid attempting to measure a current that your shunt cannot handle without saturating the ADC.
+
+    float safeCurrentLimit = 0.32f / rShuntValue;
+    if (maxCurrent > safeCurrentLimit)
+    {
+        return HAL_ERROR;
+    }
    
     ina219->_shuntResistor = rShuntValue;
     ina219->_maximumCurrent = maxCurrent;
@@ -387,7 +395,15 @@ HAL_StatusTypeDef INA219_SetCalibration(INA219_HandleTypeDef *ina219, float rShu
     float roundedLsb = INA219_RoundCurrentLsb(currentLsbMinimum);
     ina219->_currentLsb = roundedLsb;
 
-    uint16_t shuntCal = (uint16_t)(0.04096f / (roundedLsb * rShuntValue));
+    // Ensure that the virtual LSB is not set too small, as this may produce values exceeding 65535
+    // leading to truncation and corrupted sensor data
+    float calValue = 0.04096f / (roundedLsb * rShuntValue);
+    if (calValue > 65535.0f)
+    {
+        return HAL_ERROR; 
+    }
+
+    uint16_t shuntCal = (uint16_t)calValue;
 
     return INA219_WriteRegister(ina219, INA219_CALIBRATION_REG, shuntCal);
 }
