@@ -404,7 +404,7 @@ HAL_StatusTypeDef INA219_SetCalibration(INA219_HandleTypeDef *ina219, float rShu
     }
 
     uint16_t shuntCal = (uint16_t)calValue;
-
+    //shuntCal = 4096;
     return INA219_WriteRegister(ina219, INA219_CALIBRATION_REG, shuntCal);
 }
 
