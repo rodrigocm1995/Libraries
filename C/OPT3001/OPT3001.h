@@ -48,7 +48,8 @@
 
 #define OPT3001_ADDRESS		0x44
 #define OPT3001_TRIALS		5
-#define CHECK_BIT(var,pos)	((var) & (1<<(pos)))
+
+#include "main.h"
 
 // Registers
 #define OPT3001_RESULT_REG				0x00
@@ -95,7 +96,7 @@
 #define OPT3001_M_Mask                  (0x3U << OPT3001_M_Pos)
 #define OPT3001_M                       OPT3001_M_Mask
 
-#define OPT3001_CT_Pos                  (10U)
+#define OPT3001_CT_Pos                  (11U)
 #define OPT3001_CT_Mask                 (0x1U << OPT3001_CT_Pos)
 #define OPT3001_CT                      OPT3001_CT_Mask
 
@@ -114,32 +115,32 @@
 
 typedef enum
 {
-	OPT3001_40_95_LUX					= 0x0U,
-	OPT3001_81_90_LUX					= 0x1U,
-	OPT3001_163_80_LUX					= 0x2U,
-	OPT3001_327_60_LUX					= 0x3U,
-	OPT3001_655_20_LUX					= 0x4U,
-	OPT3001_1310_40_LUX					= 0x5U,
-	OPT3001_2620_80_LUX					= 0x6U,
-	OPT3001_5241_60_LUX					= 0x7U,
-	OPT3001_10483_20_LUX				= 0x8U,
-	OPT3001_20966_40_LUX				= 0x9U,
-	OPT3001_41932_80_LUX				= 0xAU,
-	OPT3001_83865_60_LUX				= 0xBU,
-	OPT3001_AUTOMATIC_RANGE				= 0xCU,
+	OPT3001_40_95_LUX					            = 0x0U,
+	OPT3001_81_90_LUX					            = 0x1U,
+	OPT3001_163_80_LUX					          = 0x2U,
+	OPT3001_327_60_LUX					          = 0x3U,
+	OPT3001_655_20_LUX					          = 0x4U,
+	OPT3001_1310_40_LUX					          = 0x5U,
+	OPT3001_2620_80_LUX					          = 0x6U,
+	OPT3001_5241_60_LUX					          = 0x7U,
+	OPT3001_10483_20_LUX				          = 0x8U,
+	OPT3001_20966_40_LUX				          = 0x9U,
+	OPT3001_41932_80_LUX				          = 0xAU,
+	OPT3001_83865_60_LUX				          = 0xBU,
+	OPT3001_AUTOMATIC_RANGE				        = 0xCU,
 }OPT3001_FullScaleRange_TypeDef;
 
 typedef enum
 {
-	OPT3001_100_MS				    	= 0x0U,
-	OPT3001_800_MS				    	= 0x1U, 
+	OPT3001_100_MS				    	          = 0x0U,
+	OPT3001_800_MS				    	          = 0x1U, 
 }OPT3001_ConvTime_TypeDef;
 
 typedef enum
 {
-	OPT3001_SHUTDOWN_MODE				= 0x0U,
-	OPT3001_SINGLE_SHOT_MODE		    = 0x1U,
-	OPT3001_CONTINUOUS_MODE		        = 0x2U,
+	OPT3001_SHUTDOWN_MODE				          = 0x0U,
+	OPT3001_SINGLE_SHOT_MODE		          = 0x1U,
+	OPT3001_CONTINUOUS_MODE		            = 0x2U,
 }OPT3001_Mode_TypeDef;
 
 typedef enum
@@ -150,48 +151,44 @@ typedef enum
 
 typedef enum
 {
-	OPT3001_ALERT_ACTIVE_LOW			= 0x0U,
-	OPT3001_ALERT_ACTIVE_HIGH			= 0x1U,
+	OPT3001_ALERT_ACTIVE_LOW			        = 0x0U,
+	OPT3001_ALERT_ACTIVE_HIGH			        = 0x1U,
 }OPT3001_AlertPinPol_TypeDef;
 
 typedef enum
 {
-	OPT3001_ONE_FAULT_COUNT				= 0x0U,
-	OPT3001_TWO_FAULT_COUNTS			= 0x1U,
-	OPT3001_FOUR_FAULT_COUNTS			= 0x2U,
-	OPT3001_EIGHT_FAULT_COUNTS			= 0x3U,
+	OPT3001_ONE_FAULT_COUNT				        = 0x0U,
+	OPT3001_TWO_FAULT_COUNTS			        = 0x1U,
+	OPT3001_FOUR_FAULT_COUNTS			        = 0x2U,
+	OPT3001_EIGHT_FAULT_COUNTS			      = 0x3U,
 }OPT3001_FaultCount_TypeDef;
 
 typedef struct
 {
-	I2C_HandleTypeDef					*hi2c;
-	uint8_t								_devAddress;
+	I2C_HandleTypeDef					          *hi2c;
+	uint8_t								              _devAddress;
 	OPT3001_FullScaleRange_TypeDef 	    _innerExponent;
-}OPT3001_HandleTypeDef;
+} OPT3001_HandleTypeDef;
 
-
-/* Prototypes for low-level register interface */
-HAL_StatusTypeDef OPT3001_WriteRegister(OPT3001_HandleTypeDef *opt3001, uint8_t registerAddress, uint16_t value);
-uint16_t OPT3001_ReadRegister(OPT3001_HandleTypeDef *opt3001, uint8_t registerAddress);
 
 /* Initialization */
-void OPT3001_Init(OPT3001_HandleTypeDef *opt3001, I2C_HandleTypeDef *i2c, uint8_t devAddress);
+HAL_StatusTypeDef OPT3001_Init(OPT3001_HandleTypeDef *opt3001, I2C_HandleTypeDef *i2c, uint8_t devAddress);
 
 /* Getting register values */
-uint16_t OPT3001_GetResultReg(OPT3001_HandleTypeDef *opt3001);
-uint16_t OPT3001_GetConfiguration(OPT3001_HandleTypeDef *opt3001);
-uint16_t OPT3001_GetLowLimitReg(OPT3001_HandleTypeDef *opt3001);
-uint16_t OPT3001_GetHighLimitReg(OPT3001_HandleTypeDef *opt3001);
-uint16_t OPT3001_GetManufacturerId(OPT3001_HandleTypeDef *opt3001);
-uint16_t OPT3001_GetDeviceId(OPT3001_HandleTypeDef *opt3001);
+HAL_StatusTypeDef OPT3001_GetResultReg(OPT3001_HandleTypeDef *opt3001, uint16_t *value);
+HAL_StatusTypeDef OPT3001_GetConfiguration(OPT3001_HandleTypeDef *opt3001, uint16_t *value);
+HAL_StatusTypeDef OPT3001_GetLowLimitReg(OPT3001_HandleTypeDef *opt3001, uint16_t *value);
+HAL_StatusTypeDef OPT3001_GetHighLimitReg(OPT3001_HandleTypeDef *opt3001, uint16_t *value);
+HAL_StatusTypeDef OPT3001_GetManufacturerId(OPT3001_HandleTypeDef *opt3001, uint16_t *value);
+HAL_StatusTypeDef OPT3001_GetDeviceId(OPT3001_HandleTypeDef *opt3001, uint16_t *value);
 
 /* Setting CONFIGURATION register bits */
-void OPT3001_SetRangeNumber(OPT3001_HandleTypeDef *opt3001, OPT3001_FullScaleRange_TypeDef range);
-void OPT3001_SetConvTime(OPT3001_HandleTypeDef *opt3001, OPT3001_ConvTime_TypeDef convTime);
-void OPT3001_SetMode(OPT3001_HandleTypeDef *opt3001, OPT3001_Mode_TypeDef mode);
-void OPT3001_SetLatchMode(OPT3001_HandleTypeDef *opt3001, OPT3001_Latch_TypeDef latchMode);
-void OPT3001_SetAlertPinPolarity(OPT3001_HandleTypeDef *opt3001, OPT3001_AlertPinPol_TypeDef polarity);
-void OPT3001_SetFaultCount(OPT3001_HandleTypeDef *opt3001, OPT3001_FaultCount_TypeDef faultCount);
+HAL_StatusTypeDef OPT3001_SetRangeNumber(OPT3001_HandleTypeDef *opt3001, OPT3001_FullScaleRange_TypeDef range);
+HAL_StatusTypeDef OPT3001_SetConvTime(OPT3001_HandleTypeDef *opt3001, OPT3001_ConvTime_TypeDef convTime);
+HAL_StatusTypeDef OPT3001_SetMode(OPT3001_HandleTypeDef *opt3001, OPT3001_Mode_TypeDef mode);
+HAL_StatusTypeDef OPT3001_SetLatchMode(OPT3001_HandleTypeDef *opt3001, OPT3001_Latch_TypeDef latchMode);
+HAL_StatusTypeDef OPT3001_SetAlertPinPolarity(OPT3001_HandleTypeDef *opt3001, OPT3001_AlertPinPol_TypeDef polarity);
+HAL_StatusTypeDef OPT3001_SetFaultCount(OPT3001_HandleTypeDef *opt3001, OPT3001_FaultCount_TypeDef faultCount);
 
 /* CONFIGURATION register bits flags */
 _Bool OPT3001_IsOverflowFlagSet(OPT3001_HandleTypeDef *opt3001);
@@ -200,14 +197,14 @@ _Bool OPT3001_IsHighLimitFlagSet(OPT3001_HandleTypeDef *opt3001);
 _Bool OPT3001_IsLowLimitFlagSet(OPT3001_HandleTypeDef *opt3001);
 
 /* Setting the comparison limit Registers */
-void OPT3001_SetLowLimit(OPT3001_HandleTypeDef *opt3001, double lowLimit);
-void OPT3001_SetHighLimit(OPT3001_HandleTypeDef *opt3001, double highLimit);
+HAL_StatusTypeDef OPT3001_SetLowLimit(OPT3001_HandleTypeDef *opt3001, float lowLimit);
+HAL_StatusTypeDef OPT3001_SetHighLimit(OPT3001_HandleTypeDef *opt3001, float highLimit);
 
 /* Getting the upper and lower limits of the device in Lux */
-double OPT3001_GetLowLimit_Lux(OPT3001_HandleTypeDef *opt3001);
-double OPT3001_GetHighLimit_Lux(OPT3001_HandleTypeDef *opt3001);
+HAL_StatusTypeDef OPT3001_GetLowLimit_Lux(OPT3001_HandleTypeDef *opt3001, float *lowLimitLux);
+HAL_StatusTypeDef OPT3001_GetHighLimit_Lux(OPT3001_HandleTypeDef *opt3001, float *highLimitLux);
 
 /* Getting the lux value */
-double OPT3001_GetLux(OPT3001_HandleTypeDef *opt3001);
+HAL_StatusTypeDef OPT3001_GetLux(OPT3001_HandleTypeDef *opt3001, float *lux);
 
 #endif
