@@ -1,6 +1,7 @@
 #include "i2c_bus.h"
 #include "math.h"
 #include "stm32f3xx_hal_def.h"
+#include <stdint.h>
 #include "OPT3001.h"
 
 /* Static helper prototypes */
@@ -390,6 +391,140 @@ HAL_StatusTypeDef OPT3001_SetConvTime(OPT3001_HandleTypeDef *opt3001, OPT3001_Co
 }
 
 /**
+  * @brief  Read the current fault count configuration from the sensor.
+  *         This function reads the CONFIGURATION register, extracts the fault count bits (bits 1:0),
+  *         and stores the active setting in the provided pointer.
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration information for connecting to the sensor.
+  * @param  faultCount Pointer to a OPT3001_FaultCount_TypeDef variable where the setting will be stored:
+  *         - OPT3001_ONE_FAULT_COUNT (0x0): 1 fault count
+  *         - OPT3001_TWO_FAULT_COUNTS (0x1): 2 fault counts
+  *         - OPT3001_FOUR_FAULT_COUNTS (0x2): 4 fault counts
+  *         - OPT3001_EIGHT_FAULT_COUNTS (0x3): 8 fault counts
+  * @return HAL status
+  */
+HAL_StatusTypeDef OPT3001_GetFaultCount(OPT3001_HandleTypeDef *opt3001, OPT3001_FaultCount_TypeDef *faultCount)
+{
+    if (faultCount == NULL) return HAL_ERROR;
+
+    uint16_t regValue = 0;
+    HAL_StatusTypeDef status = OPT3001_GetConfiguration(opt3001, &regValue);
+
+    if (status == HAL_OK)
+    {
+        *faultCount = (OPT3001_FaultCount_TypeDef)( (regValue & OPT3001_FC) >> OPT3001_FC_Pos );
+    }
+
+    return status;
+}
+
+/**
+  * @brief  Read the current alert pin polarity configuration from the sensor.
+  *         This function reads the CONFIGURATION register, extracts the polarity bit (bit 3),
+  *         and stores the active setting in the provided pointer.
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration information for connecting to the sensor.
+  * @param  polarity Pointer to a OPT3001_AlertPinPol_TypeDef variable where the setting will be stored:
+  *         - OPT3001_ALERT_ACTIVE_LOW (0x0): INT pin active low
+  *         - OPT3001_ALERT_ACTIVE_HIGH (0x1): INT pin active high
+  * @return HAL status
+  */
+HAL_StatusTypeDef OPT3001_GetAlertPinPolarity(OPT3001_HandleTypeDef *opt3001, OPT3001_AlertPinPol_TypeDef *polarity)
+{
+    if (polarity == NULL) return HAL_ERROR;
+    
+    uint16_t regValue = 0;
+    HAL_StatusTypeDef status = OPT3001_GetConfiguration(opt3001, &regValue);
+
+    if (status == HAL_OK)
+    {
+        *polarity = (OPT3001_AlertPinPol_TypeDef)( (regValue & OPT3001_POL) >> OPT3001_POL_Pos );
+    }
+
+    return status;
+}
+
+/**
+  * @brief  Read the current interrupt latch mode configuration from the sensor.
+  *         This function reads the CONFIGURATION register, extracts the latch bit (bit 4),
+  *         and stores the active setting in the provided pointer.
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration information for connecting to the sensor.
+  * @param  latchMode Pointer to a OPT3001_Latch_TypeDef variable where the setting will be stored:
+  *         - OPT3001_LATCH_HYSTERESIS (0x0): Hysteresis-style interrupts
+  *         - OPT3001_LATCH_LATCHED (0x1): Latched interrupts (cleared by reading Config register)
+  * @return HAL status
+  */
+HAL_StatusTypeDef OPT3001_GetLatchMode(OPT3001_HandleTypeDef *opt3001, OPT3001_Latch_TypeDef *latchMode)
+{
+    if (latchMode == NULL) return HAL_ERROR;
+
+    uint16_t regValue = 0;
+    HAL_StatusTypeDef status = OPT3001_GetConfiguration(opt3001, &regValue);
+
+    if (status == HAL_OK)
+    {
+        *latchMode = (OPT3001_Latch_TypeDef)((regValue & OPT3001_L) >> OPT3001_L_Pos);
+    }
+
+    return status; 
+}
+
+/**
+  * @brief  Read the current operating mode configuration from the sensor.
+  *         This function reads the CONFIGURATION register, extracts the mode bits (bits 10:9),
+  *         and stores the active setting in the provided pointer.
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration information for connecting to the sensor.
+  * @param  mode Pointer to a OPT3001_Mode_TypeDef variable where the setting will be stored:
+  *         - OPT3001_SHUTDOWN_MODE (0x0): Low-power shutdown state
+  *         - OPT3001_SINGLE_SHOT_MODE (0x1): One-shot conversion mode
+  *         - OPT3001_CONTINUOUS_MODE (0x2): Continuous conversion mode
+  * @return HAL status
+  */
+HAL_StatusTypeDef OPT3001_GetMode(OPT3001_HandleTypeDef *opt3001, OPT3001_Mode_TypeDef *mode)
+{
+    if (mode == NULL) return HAL_ERROR;
+
+    uint16_t regValue = 0;
+    HAL_StatusTypeDef status = OPT3001_GetConfiguration(opt3001, &regValue);
+
+    if (status == HAL_OK)
+    {
+        *mode = (OPT3001_Mode_TypeDef)((regValue & OPT3001_M) >> OPT3001_M_Pos);
+    }
+
+    return status;
+}
+
+
+/**
+  * @brief  Read the current conversion (integration) time configuration from the sensor.
+  *         This function reads the CONFIGURATION register, extracts the CT bit (bit 11),
+  *         and stores the active conversion time setting in the provided pointer.
+  * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
+  *         the configuration information for connecting to the sensor.
+  * @param  convTime Pointer to a OPT3001_ConvTime_TypeDef variable where the setting will be stored:
+  *         - OPT3001_100_MS (0x0): 100 ms integration time
+  *         - OPT3001_800_MS (0x1): 800 ms integration time
+  * @return HAL status
+  */
+HAL_StatusTypeDef OPT3001_GetConvTime(OPT3001_HandleTypeDef *opt3001, OPT3001_ConvTime_TypeDef *convTime)
+{
+    if (convTime == NULL) return HAL_ERROR;
+
+    uint16_t regValue = 0;
+    HAL_StatusTypeDef status = OPT3001_GetConfiguration(opt3001, &regValue);
+
+    if (status == HAL_OK)
+    {
+        *convTime = (OPT3001_ConvTime_TypeDef)((regValue & OPT3001_CT_Mask) >> OPT3001_CT_Pos);
+    }
+
+    return status;
+}
+
+/**
   * @brief  Configure the full-scale range (Range Number RN field) in the CONFIGURATION register.
   *         This field selects the full-scale lux range of the device. It can be set manually 
   *         to a specific range or set to automatic scaling mode, where the device automatically 
@@ -514,7 +649,8 @@ HAL_StatusTypeDef OPT3001_SetHighLimit(OPT3001_HandleTypeDef *opt3001, float hig
   *         the threshold limit in lux using the formula: lux = 0.01 * (2^exponent) * mantissa.
   * @param  opt3001 Pointer to a OPT3001_HandleTypeDef structure that contains
   *         the configuration information for connecting to the sensor.
-  * @param  highLimitLux Pointer to a float variable where the high limit threshold in lux will be stored.
+  * @param  highLimitLux Pointer to a float variable where the high limit threshold in lux will
+  *         be stored.
   * @return HAL status
   */
 HAL_StatusTypeDef OPT3001_GetHighLimit_Lux(OPT3001_HandleTypeDef *opt3001, float *highLimitLux)
