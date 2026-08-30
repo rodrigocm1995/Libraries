@@ -153,7 +153,7 @@ typedef enum
 
 typedef enum
 {
-  TMP117_ALERT_FOR_DATA_READY_FLAG              = 0x1U, 
+  TMP117_ALERT_FOR_DATA_READY_FLAG              = 0x1U,
   TMP117_ALERT_FOR_ALERT_FLAGS                  = 0x0U,
 }TMP117_DRALERT_TypeDef;
 
@@ -169,8 +169,8 @@ typedef struct
     I2C_HandleTypeDef       *hi2c;
     uint8_t                 _devAddress;
     uint8_t                 _samples;
-    double                  _activeTime;
-    double                  _requestedTime;
+    float                  _activeTime;
+    float                  _requestedTime;
 } TMP117_HandleTypeDef;
 
 
@@ -186,10 +186,9 @@ HAL_StatusTypeDef TMP117_GetEeprom3(TMP117_HandleTypeDef *tmp117, uint16_t *valu
 
 
 /* Diagnostic Readings */
-_Bool TMP117_EepromBusyFlag(TMP117_HandleTypeDef *tmp117);
-double TMP117_GetHighLimitTemp_C(TMP117_HandleTypeDef *tmp117);
-double TMP117_GetLowLimitTemp_C(TMP117_HandleTypeDef *tmp117);
-double TMP117_CheckTemperature(uint16_t value);
+HAL_StatusTypeDef TMP117_GetHighLimitTemp_C(TMP117_HandleTypeDef *tmp117, float *temp);
+HAL_StatusTypeDef TMP117_GetLowLimitTemp_C(TMP117_HandleTypeDef *tmp117, float *temp);
+float TMP117_ConvertRawToCelsius(uint16_t value);
 
 /* EEPROM Control */
 HAL_StatusTypeDef TMP117_SetEeprom1(TMP117_HandleTypeDef *tmp117, uint16_t data);
@@ -211,9 +210,9 @@ _Bool TMP117_IsDataReady(TMP117_HandleTypeDef *tmp117);
 _Bool TMP117_IsLowAlertSet(TMP117_HandleTypeDef *tmp117);
 _Bool TMP117_IsHighAlertSet(TMP117_HandleTypeDef *tmp117);
 HAL_StatusTypeDef TMP117_SetConvTime(TMP117_HandleTypeDef *tmp117, TMP117_ConvTime_TypeDef convTime);
-HAL_StatusTypeDef TMP117_SetHighLimit_C(TMP117_HandleTypeDef *tmp117, double highLimit);
-HAL_StatusTypeDef TMP117_SetLowLimit_C(TMP117_HandleTypeDef *tmp117, double lowLimit);
-double TMP117_GetTemperature_C(TMP117_HandleTypeDef *tmp117);
+HAL_StatusTypeDef TMP117_SetHighLimit_C(TMP117_HandleTypeDef *tmp117, float highLimit);
+HAL_StatusTypeDef TMP117_SetLowLimit_C(TMP117_HandleTypeDef *tmp117, float lowLimit);
+HAL_StatusTypeDef TMP117_GetTemperature_C(TMP117_HandleTypeDef *tmp117, float *temp);
 
 
 #endif
